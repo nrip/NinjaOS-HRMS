@@ -18,7 +18,7 @@ class DepartmentFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->word(),
+            'name' => $this->faker->unique()->word(),
             'code' => strtoupper($this->faker->unique()->lexify('???')),
             'description' => $this->faker->sentence(),
             'is_active' => true,

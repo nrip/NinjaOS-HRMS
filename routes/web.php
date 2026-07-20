@@ -42,4 +42,17 @@ Route::middleware('auth')->group(function () {
 
     // Shift routes
     Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
+
+    // Phase 3: Leave Management
+    Route::prefix('leave')->name('leave.')->group(function () {
+        Route::get('/',         [\App\Http\Controllers\LeaveApplicationController::class, 'index'])->name('index');
+        Route::get('/apply',    [\App\Http\Controllers\LeaveApplicationController::class, 'create'])->name('create');
+        Route::post('/',        [\App\Http\Controllers\LeaveApplicationController::class, 'store'])->name('store');
+        Route::patch('/{leaveApplication}/cancel',  [\App\Http\Controllers\LeaveApplicationController::class, 'cancel'])->name('cancel');
+        Route::get('/approvals',                    [\App\Http\Controllers\LeaveApplicationController::class, 'approvals'])->name('approvals');
+        Route::patch('/{leaveApplication}/approve', [\App\Http\Controllers\LeaveApplicationController::class, 'approve'])->name('approve');
+        Route::patch('/{leaveApplication}/reject',  [\App\Http\Controllers\LeaveApplicationController::class, 'reject'])->name('reject');
+        Route::get('/balances',            [\App\Http\Controllers\LeaveBalanceController::class, 'index'])->name('balances');
+        Route::get('/balances/projection', [\App\Http\Controllers\LeaveBalanceController::class, 'projection'])->name('balances.projection');
+    });
 });

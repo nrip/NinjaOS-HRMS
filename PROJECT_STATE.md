@@ -1,10 +1,10 @@
 # NexusOS Project State
 
-**Current Phase:** Phase 2 - Attendance & Shift Management (COMPLETE ✅)
+**Current Phase:** Phase 3 - Leave Management (COMPLETE ✅)
 
-**Last Updated:** 2026-07-20 07:40 GMT+5:30
+**Last Updated:** 2026-07-20 14:30 GMT+5:30
 
-**Status:** Phase 2 Complete - Ready for Phase 3
+**Status:** Phase 3 Complete - Ready for Phase 4 (Payroll & Statutory Compliance)
 
 ---
 
@@ -104,13 +104,6 @@ Tests: 3 passed (61 assertions)
 Duration: 0.57s
 ```
 
-### Full Test Suite: 32/32 PASSED ✅
-
-```
-Tests: 32 passed (127 assertions)
-Duration: 1.70s
-```
-
 ### Implemented Features
 
 #### 1. Shift Management ✅
@@ -166,27 +159,123 @@ Duration: 1.70s
 - `2026_07_20_XXXXXX_add_phase2_columns_to_shifts_table.php` — `is_night_shift`, `grace_period_minutes` on shifts
 - `2026_07_20_XXXXXX_add_phase2_columns_to_attendance_table.php` — 8 new columns on attendance
 
+---
+
+## Phase 3: Leave Management (COMPLETE ✅)
+
+### Exit Gate Tests: 3/3 PASSED ✅
+
+```
+✓ test_state_specific_accrual_calculates_correctly_for_mid_year_joiner
+✓ test_holiday_calendar_excludes_state_specific_holidays_from_working_days
+✓ test_leave_approval_workflow_updates_balance_and_creates_audit_log
+
+Tests: 3 passed (47 assertions)
+Duration: 0.66s
+```
+
+### Full Test Suite: 35/35 PASSED ✅
+
+```
+Tests: 35 passed (174 assertions)
+Duration: 2.08s
+```
+
+### Implemented Features
+
+#### 1. Leave Types ✅
+- 8 leave types: EL (Earned Leave), CL (Casual Leave), SL (Sick Leave), ML (Maternity Leave),
+  PL (Paternity Leave), BL (Bereavement Leave), CO (Compensatory Off), UL (Unpaid Leave)
+- All types configured in `config/statutory.php` per state
+- LocationScope enforced on LeaveApplication and LeaveBalance models
+
+#### 2. State-Specific Accrual Engine ✅
+- `App\Services\Leave\LeaveAccrualEngine` — all rules from `config/statutory.php`
+- Monthly accrual frequency with pro-rata calculation for mid-year joiners
+- Year-end carry-forward capping with configurable `carry_forward_limit` per leave type per state
+- Excess handling: `lapse` or `encash` (per config)
+- Comp Off expiry: `expiry_date` on `leave_balances`, auto-zeroed by `expireCompOffBalances()`
+- No hardcoded accrual values anywhere in business logic
+
+#### 3. Location-Specific Holiday Calendars ✅
+- `HolidayCalendar` model with `type` (national/state) and LocationScope
+- `HolidayCalendarSeeder` seeds national + state-specific holidays for all 9 states (2026)
+- `LeaveService::countWorkingDays()` excludes weekends AND location holidays
+- Half-day leave returns `0.5` working days
+
+#### 4. Approval Workflow ✅
+- State machine: `pending_approval` → `approved` / `rejected` / `cancelled`
+- Tentative balance deduction on application (pending bucket)
+- On approval: pending → availed
+- On rejection: pending → restored to available (closing_balance)
+- On cancellation: pending/availed → restored
+- Spatie ActivityLog records every approval/rejection with causer and comments
+- `LeaveApplicationPolicy` enforces LocationScope: Location HR can only act on their location
+
+#### 5. Balance Visibility & 12-Month Projection ✅
+- Real-time balance: Opening + Accrued − Availed = Closing (live from DB)
+- Pending bucket shows tentative deductions
+- `App\Services\Leave\LeaveProjectionService` — in-memory 12-month forward simulation
+- Projection accounts for future approved leaves and monthly accrual
+- Chart.js visualization on `/leave/balances`
+- JSON API endpoint: `GET /leave/balances/projection`
+
+#### 6. Half-Day Leave Support ✅
+- `is_half_day` boolean and `half_day_session` enum (`first_half`/`second_half`) on `leave_applications`
+- `countWorkingDays()` returns `0.5` for half-day
+- Form validation: half-day requires `from_date === to_date`
+
+#### 7. Scheduled Accrual Job ✅
+- `App\Jobs\AccrueLeavesJob` — dispatched monthly on 1st at 00:05 IST
+- Registered in `routes/console.php` via Laravel Scheduler
+- `leave:accrue` Artisan command for manual/backfill runs
+- Comp Off expiry runs as part of the same monthly job
+
+### Database Migrations Added (Phase 3)
+
+- `2026_07_20_141504_create_leave_balances_table.php` — `leave_balances` with composite index `(employee_id, leave_type, year)`
+- `2026_07_20_141505_add_phase3_columns_to_leave_applications_table.php` — half-day columns, rejection/cancellation tracking, composite indexes
+
 ### Key Services
 
-- `App\Services\Attendance\AttendanceService` — processPunch, calculateOtHours, duplicate detection
-- `App\Services\Attendance\GeoFencingService` — Haversine geo-fencing with configurable radius
+- `App\Services\Leave\LeaveAccrualEngine` — config-driven accrual, carry-forward, Comp Off expiry
+- `App\Services\Leave\LeaveService` — apply, approve, reject, cancel; working days calculation
+- `App\Services\Leave\LeaveProjectionService` — 12-month forward balance projection
 
 ### Key Jobs
 
-- `App\Jobs\ProcessBiometricPunch` — Queue job for biometric punch processing (Horizon: biometric queue)
+- `App\Jobs\AccrueLeavesJob` — Monthly leave accrual for all active locations (Scheduler: 1st of month)
 
 ### Key Controllers
 
-- `App\Http\Controllers\AttendanceController` — Attendance CRUD + punch recording
-- `App\Http\Controllers\ShiftController` — Shift CRUD
-- `App\Http\Controllers\Api\BiometricMockController` — Mock biometric endpoint
+- `App\Http\Controllers\LeaveApplicationController` — Apply, approve, reject, cancel
+- `App\Http\Controllers\LeaveBalanceController` — Balance view + projection API
+
+### Key Policies
+
+- `App\Policies\LeaveApplicationPolicy` — LocationScope enforcement for approve/reject/cancel
+
+### Web Routes Added
+
+```
+GET    /leave                           — Employee: list own applications
+GET    /leave/apply                     — Employee: application form
+POST   /leave                           — Employee: submit application
+PATCH  /leave/{id}/cancel               — Employee/HR: cancel
+GET    /leave/approvals                 — Manager/HR: pending approvals
+PATCH  /leave/{id}/approve              — Manager/HR: approve
+PATCH  /leave/{id}/reject               — Manager/HR: reject
+GET    /leave/balances                  — Employee: balance + projection view
+GET    /leave/balances/projection       — API: JSON projection for Chart.js
+```
 
 ### Multi-Tenancy Verification
 
-- [x] LocationScope applied to Attendance model
-- [x] LocationScope applied to Shift model
-- [x] AttendancePolicy enforces location isolation
-- [x] ShiftPolicy enforces location isolation
+- [x] LocationScope applied to LeaveApplication model
+- [x] LocationScope applied to LeaveBalance model
+- [x] LocationScope applied to HolidayCalendar model
+- [x] LeaveApplicationPolicy enforces location isolation for approve/reject/cancel
+- [x] Location HR can ONLY approve regularization for their own location
 
 ---
 
@@ -199,6 +288,9 @@ Duration: 1.70s
 - [x] locations (+ attendance_radius_meters, state_code, code)
 - [x] shifts (+ is_night_shift, grace_period_minutes)
 - [x] attendance (+ punch_source, device_id, ot_hours, is_late, is_early_departure, geo_lat, geo_lng, geo_distance_metres, shift_id)
+- [x] leave_applications (+ is_half_day, half_day_session, rejected_by, rejected_at, cancelled_at; composite indexes)
+- [x] leave_balances (opening_balance, accrued, availed, pending, closing_balance, expiry_date; composite index)
+- [x] holiday_calendars (national + state-specific, LocationScope)
 - [x] users
 - [x] activity_log (Spatie ActivityLog)
 - [x] roles, permissions (Spatie Permission)
@@ -220,28 +312,41 @@ php artisan test tests/Feature/Phase1ExitGateTest.php --no-coverage
 
 # Phase 2 tests
 php artisan test tests/Feature/Phase2AttendanceTest.php --no-coverage
+
+# Phase 3 tests
+php artisan test tests/Feature/Phase3LeaveTest.php --no-coverage
 ```
 
-### Biometric Mock API
+### Phase 3 Exit Gate Verification Commands
 ```bash
-# POST a mock punch (requires Sanctum token)
-curl -X POST http://localhost:8000/api/v1/integrations/biometric/mock-punch \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "employee_code": "EMP-MH-00001",
-    "punch_type": "IN",
-    "timestamp": "2026-07-20T09:15:00+05:30",
-    "latitude": 18.5913,
-    "longitude": 73.7389,
-    "device_id": "ZK-MOCK-01"
-  }'
+# Run all 3 Phase 3 mandatory tests
+php artisan test tests/Feature/Phase3LeaveTest.php --no-coverage
+
+# Run specific Phase 3 tests
+php artisan test tests/Feature/Phase3LeaveTest.php --filter="test_state_specific_accrual_calculates_correctly_for_mid_year_joiner" --no-coverage
+php artisan test tests/Feature/Phase3LeaveTest.php --filter="test_holiday_calendar_excludes_state_specific_holidays_from_working_days" --no-coverage
+php artisan test tests/Feature/Phase3LeaveTest.php --filter="test_leave_approval_workflow_updates_balance_and_creates_audit_log" --no-coverage
+```
+
+### Leave Accrual Commands
+```bash
+# Run monthly accrual for all locations (dispatches job)
+php artisan leave:accrue
+
+# Run for specific location
+php artisan leave:accrue --location=1
+
+# Run for specific month/year (backfill)
+php artisan leave:accrue --year=2026 --month=7
 ```
 
 ### Database Seeding
 ```bash
 # Seed roles, permissions, and locations
 php artisan db:seed
+
+# Seed holiday calendars
+php artisan db:seed --class=HolidayCalendarSeeder
 
 # Seed with fresh database
 php artisan migrate:fresh --seed
@@ -255,29 +360,50 @@ php artisan migrate:fresh --seed
 - `/app/Models/Employee.php` — Employee model with MediaLibrary, ActivityLog, SoftDeletes, LocationScope
 - `/app/Models/Attendance.php` — Attendance model with LocationScope, SoftDeletes
 - `/app/Models/Shift.php` — Shift model with LocationScope, SoftDeletes
+- `/app/Models/LeaveApplication.php` — Leave application with state machine, half-day, LocationScope
+- `/app/Models/LeaveBalance.php` — Leave balance with balance helpers, expiry_date, LocationScope
+- `/app/Models/HolidayCalendar.php` — Holiday calendar with LocationScope
 - `/app/Models/Location.php` — Location model (code, state_code, attendance_radius_meters)
 - `/app/Services/Attendance/AttendanceService.php` — Core attendance logic
 - `/app/Services/Attendance/GeoFencingService.php` — Haversine geo-fencing
+- `/app/Services/Leave/LeaveAccrualEngine.php` — Config-driven accrual, carry-forward, Comp Off expiry
+- `/app/Services/Leave/LeaveService.php` — Apply, approve, reject, cancel; working days calculation
+- `/app/Services/Leave/LeaveProjectionService.php` — 12-month forward balance projection
 - `/app/Jobs/ProcessBiometricPunch.php` — Biometric queue job
+- `/app/Jobs/AccrueLeavesJob.php` — Monthly leave accrual job
 
 ### Controllers
 - `/app/Http/Controllers/AttendanceController.php` — Attendance CRUD
 - `/app/Http/Controllers/ShiftController.php` — Shift CRUD
 - `/app/Http/Controllers/Api/BiometricMockController.php` — Mock biometric endpoint
+- `/app/Http/Controllers/LeaveApplicationController.php` — Leave apply/approve/reject/cancel
+- `/app/Http/Controllers/LeaveBalanceController.php` — Balance view + projection API
+
+### Policies
+- `/app/Policies/LeaveApplicationPolicy.php` — LocationScope enforcement
 
 ### Views
 - `/resources/views/attendance/index.blade.php` — Attendance list
 - `/resources/views/shifts/index.blade.php` — Shift list
 - `/resources/views/shifts/form.blade.php` — Create/edit shift
+- `/resources/views/leave/index.blade.php` — Employee leave applications
+- `/resources/views/leave/form.blade.php` — Apply for leave (with half-day support)
+- `/resources/views/leave/approvals.blade.php` — Manager/HR approval dashboard
+- `/resources/views/leave/balances.blade.php` — Balance view + 12-month Chart.js projection
 
 ### Tests
 - `/tests/Feature/Phase1ExitGateTest.php` — 4 Phase 1 exit gate tests
 - `/tests/Feature/Phase2AttendanceTest.php` — 3 Phase 2 exit gate tests
+- `/tests/Feature/Phase3LeaveTest.php` — 3 Phase 3 exit gate tests
 
 ### Configuration
-- `/config/statutory.php` — All statutory values for 9 states (incl. OT config)
+- `/config/statutory.php` — All statutory values for 9 states (OT config + leave accrual rules)
 - `/config/horizon.php` — Horizon queue configuration
 - `/bootstrap/app.php` — Middleware registration
+- `/routes/console.php` — Laravel Scheduler (monthly leave accrual)
+
+### Seeders
+- `/database/seeders/HolidayCalendarSeeder.php` — National + state-specific holidays for all 9 states (2026)
 
 ---
 
@@ -285,20 +411,22 @@ php artisan migrate:fresh --seed
 
 1. **Shift Assignment**: Employees are not yet assigned to specific shifts; shift lookup is by location
 2. **Attendance Reports**: No attendance summary/analytics views yet
-3. **Leave Integration**: Attendance status does not yet check leave applications
+3. **Leave-Attendance Integration**: Attendance status does not yet auto-update from approved leave
 4. **Biometric Device Auth**: Mock endpoint uses Sanctum; real integration would use device-specific API keys
 5. **Horizon Supervisor**: Production Horizon supervisor config needs tuning for load
+6. **Leave Encashment Processing**: Encashment flagging at year-end is implemented; actual payroll debit handled in Phase 4
 
 ---
 
-## Next Phase: Phase 3 - Payroll & Statutory Compliance
+## Next Phase: Phase 4 - Payroll & Statutory Compliance
 
 ### Planned Features
 1. Payroll computation (gross, deductions, net pay)
 2. PF / ESI / PT calculations from config/statutory.php
-3. Salary slip generation (PDF)
-4. Payroll approval workflow
-5. Statutory filing reports
+3. Leave balance integration (unpaid leave deductions, encashment payouts)
+4. Salary slip generation (PDF)
+5. Payroll approval workflow
+6. Statutory filing reports (Form 16, PF challan, ESI challan)
 
 ---
 
@@ -314,4 +442,4 @@ php artisan migrate:fresh --seed
 
 ---
 
-**Status:** Phase 2 Complete ✅ - Ready for Phase 3
+**Status:** Phase 3 Complete ✅ - Ready for Phase 4 (Payroll & Statutory Compliance)
