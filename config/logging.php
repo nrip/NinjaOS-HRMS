@@ -144,6 +144,26 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Phase 6: WhatsApp mock integration log
+        'whatsapp' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/whatsapp-mock.log'),
+            'level'  => 'info',
+            'days'   => 30,
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+            'replace_placeholders' => true,
+        ],
+
+        // Phase 6: Accounting mock integration log
+        'accounting' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/accounting-mock.log'),
+            'level'  => 'info',
+            'days'   => 90,
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

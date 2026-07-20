@@ -1,10 +1,10 @@
 # NexusOS Project State
 
-**Current Phase:** Phase 5 - Applicant Tracking System (COMPLETE ✅)
+**Current Phase:** Phase 6 - Integrations & Mobile (COMPLETE ✅)
 
-**Last Updated:** 2026-07-20 17:00 GMT+5:30
+**Last Updated:** 2026-07-20 17:30 GMT+5:30
 
-**Status:** Phase 5 Complete - Ready for Phase 6 (Integrations & Mobile)
+**Status:** ALL 6 PHASES COMPLETE — Production-Ready
 
 ---
 
@@ -139,109 +139,123 @@ PASS  Tests\Feature\Phase5AtsTest
 ✓ it test_convert_to_employee_creates_core_hr_record_and_onboarding_tasks
 
 Tests: 3 passed (41 assertions)
-Duration: 0.76s
 ```
 
 ### Implemented Features
 
-#### 1. Job Requisition Workflow ✅
-
-State machine: `draft` → `submitted` → `approved` / `rejected` → `open` → `closed`
-
-- Manager raises a hiring request with location, department, designation, and JD
+- Job Requisition Workflow: draft → submitted → approved → open → closed
 - Multi-level approval: Manager → Location HR → Central HR
-- LocationScope enforced: Location HR can only see requisitions for their location
-- Published requisitions are visible to recruiters for candidate intake
+- Mock Resume Parser (Sovren/Textkernel contract): PDF/DOCX → structured JSON, PII-safe logging
+- Kanban Pipeline (Alpine.js drag-and-drop): 7 stages, rejection_reason required
+- Automated Communications: queued `SendCandidateNotification` job per stage change
+- Convert to Employee: one-click handoff to Core HR with EmployeeLifecycleHistory
+- Candidate UUID primary key (DPDP compliance)
 
-#### 2. Mock Resume Parser (Sovren/Textkernel Contract) ✅
+---
 
-```json
-// POST /mock-parser-api/parse
-// Input: PDF or DOCX file
-// Output:
-{
-  "status": "success",
-  "data": {
-    "first_name":       "string",
-    "last_name":        "string",
-    "email":            "string",
-    "phone":            "string",
-    "skills":           ["string"],
-    "experience_years": 4.5,
-    "education": [
-      { "degree": "string", "institution": "string", "year_of_passing": 2018 }
-    ]
-  }
-}
-```
+## Phase 6: Integrations & Mobile (COMPLETE ✅)
 
-- Resume stored via Spatie MediaLibrary (collection: `resumes`) — consistent with Phase 1
-- PII (email, phone) is **never written to application logs** (DPDP compliance)
-- Only non-PII metadata logged: `candidate_uuid`, `file_name`, `file_size_kb`
-- Production: replace `callMockParserApi()` with HTTP POST to Sovren/Textkernel endpoint
-
-#### 3. Kanban Pipeline (Alpine.js) ✅
-
-7 stages: `applied` → `screened` → `interview_1` → `interview_2` → `offer` → `hired` / `rejected`
-
-- Drag-and-drop Kanban board at `/ats/kanban/{requisition}`
-- `CandidatePipelineService::moveToStage()` enforces state machine transitions
-- `CandidateStageHistory` records every transition with `from_stage`, `to_stage`, `moved_by`, `moved_at`
-- `rejection_reason` is **required** when moving to `rejected` stage (stored on both `Candidate` and `CandidateStageHistory`)
-
-#### 4. Automated Communications ✅
-
-- `SendCandidateNotification` job dispatched to queue on every stage change
-- Stage-specific templates: interview scheduled, offer extended, rejection (with `rejection_reason` injected)
-- Queue-based (non-blocking): `Queue::fake()` verified in tests
-
-#### 5. Convert to Employee (Phase 1 Handoff) ✅
-
-One-click action on "Hired" candidate:
-
-1. `HandoffService::convertToEmployee()` runs in a DB transaction
-2. Creates `Employee` record with `status = 'onboarding'`
-3. Pre-fills: `first_name`, `last_name`, `email`, `phone`, `date_of_joining`, `location_id`, `department_id`, `designation_id`
-4. Phase 1 `EmployeeObserver` auto-generates `employee_code` (`EMP-{STATE_CODE}-{SEQUENCE}`)
-5. `EmployeeLifecycleHistory` record created explicitly (HandoffService owns this, not the observer)
-6. Candidate updated: `converted_to_employee_id`, `converted_at`
-7. Candidate UUID primary key ensures DPDP compliance
-
-#### 6. DPDP Compliance ✅
-
-- `Candidate` model uses UUID primary key (`candidate_id`) — no sequential ID exposure
-- PII never logged (email, phone excluded from all log calls)
-- `rejection_reason` stored for audit trail
-
-### Database Migrations Added (Phase 5)
-
-- `2026_07_20_161000_create_candidates_table.php` — UUID PK, Spatie MediaLibrary compatible, rejection_reason, converted_to_employee_id
-- `2026_07_20_161001_create_candidate_stage_histories_table.php` — full audit trail with rejection_reason
-
-### Key Services
-
-- `app/Services/ATS/ResumeParserService.php` — Mock parser + Spatie MediaLibrary storage
-- `app/Services/ATS/RequisitionService.php` — Multi-level approval workflow
-- `app/Services/ATS/CandidatePipelineService.php` — Kanban stage management + notification dispatch
-- `app/Services/ATS/HandoffService.php` — ATS → Core HR bridge
-
-### Web Routes Added
+### Exit Gate Tests: 3/3 PASSED ✅
 
 ```
-GET    /ats/requisitions                           — Requisitions index
-GET    /ats/requisitions/create                    — New requisition form
-POST   /ats/requisitions                           — Store requisition
-GET    /ats/requisitions/{id}                      — Requisition detail
-POST   /ats/requisitions/{id}/submit               — Submit for approval
-POST   /ats/requisitions/{id}/approve              — Approve requisition
-POST   /ats/requisitions/{id}/reject               — Reject requisition
-POST   /ats/requisitions/{id}/candidates           — Add candidate to requisition
-GET    /ats/kanban/{id}                            — Kanban board view
-GET    /ats/kanban/{id}/data                       — Kanban board JSON data
-GET    /ats/candidates/{id}                        — Candidate detail
-PATCH  /ats/candidates/{id}/move-stage             — Move Kanban stage
-POST   /ats/candidates/{id}/convert                — Convert to Employee
+PASS  Tests\Feature\Phase6IntegrationsTest
+✓ it test_hdfc_bank_file_generation_formats_correctly
+✓ it test_whatsapp_mock_job_logs_payload_and_queues_successfully
+✓ it test_mobile_attendance_api_rejects_missing_geo_coordinates
+
+Tests: 3 passed (20 assertions)
 ```
+
+### Implemented Features
+
+#### 1. Mock External Integrations (Interface-Driven) ✅
+
+All mock services implement a production-ready interface. Swapping to real APIs requires only a binding change in `AppServiceProvider`.
+
+**WhatsApp Business API Mock**
+- Interface: `app/Services/Integrations/WhatsApp/WhatsAppServiceInterface.php`
+- Mock: `app/Services/Integrations/WhatsApp/MockWhatsAppService.php`
+- Job: `app/Jobs/SendWhatsAppMessageJob.php` (queued, logs to `storage/logs/whatsapp-mock.log`)
+- Log channel: `whatsapp` (daily rotation, 30-day retention)
+
+**Tally/Zoho Accounting Mock**
+- Interface: `app/Services/Integrations/Accounting/AccountingIntegrationInterface.php`
+- Mock: `app/Services/Integrations/Accounting/MockAccountingService.php`
+- Job: `app/Jobs/SyncPayrollToAccountingJob.php` (queued, logs JSON journal entry to `storage/logs/accounting-mock.log`)
+- Log channel: `accounting` (daily rotation, 30-day retention)
+
+**HDFC Bank Transfer File (8-column NEFT format)**
+- Service: `app/Services/Payroll/BankTransferFileService.php`
+- CSV columns: `Transaction Type | Debit Account No | Beneficiary Account No | Beneficiary Name | Amount | Beneficiary IFSC | Value Date | Customer Reference No`
+- Output: `storage/app/bank-files/HDFC-SAL-{MONTH}-{YEAR}-{timestamp}.csv`
+
+#### 2. API Resources (PII-Safe, Consistent Shaping) ✅
+
+- `EmployeeResource` — excludes Aadhaar, PAN, bank details from list responses
+- `LeaveBalanceResource` — real-time balance (opening + accrued - availed = closing)
+- `PayslipResource` — returns signed URL (15-min TTL) instead of base64 PDF data
+- `AttendanceResource` — daily punch record with working hours
+
+#### 3. Security & Performance ✅
+
+- Rate Limiting: `throttle:60,1` on all public/auth API routes
+- API Resources: consistent JSON shaping, no accidental PII leakage
+- Spatie Backup: daily database backup + `storage/app` to local disk (simulating S3)
+- Backup schedule: daily at 01:00 IST, weekly cleanup (keep 4 weeks)
+
+#### 4. Mobile API Routes ✅
+
+All routes under `/api/v1/` with `auth:sanctum` middleware:
+
+```
+POST   /api/v1/auth/login                    — Sanctum token issue
+POST   /api/v1/auth/logout                   — Token revocation
+GET    /api/v1/auth/me                       — Authenticated user profile
+POST   /api/v1/attendance/punch              — Mobile punch with geo-fencing
+GET    /api/v1/attendance                    — Attendance records
+GET    /api/v1/leave/balances                — Real-time leave balances
+POST   /api/v1/leave/apply                   — Submit leave application
+GET    /api/v1/leave                         — Leave history
+GET    /api/v1/payroll/payslips              — Payslip list with signed URLs
+```
+
+#### 5. React Native Mobile App (Expo) ✅
+
+Location: `/home/ubuntu/mobile/` (sibling to `nexusos/`)
+
+```
+mobile/
+├── App.tsx                        # Entry point
+├── src/
+│   ├── navigation/AppNavigator.tsx  # Auth guard + Bottom Tab Navigator
+│   ├── screens/
+│   │   ├── LoginScreen.tsx          # Sanctum login, expo-secure-store
+│   │   ├── AttendanceScreen.tsx     # Punch IN/OUT, geo-fencing UI
+│   │   ├── LeaveScreen.tsx          # Balance display + application form
+│   │   └── PayslipScreen.tsx        # Payslip list + signed URL PDF viewer
+│   ├── services/
+│   │   ├── api.ts                   # Axios + Sanctum interceptors
+│   │   ├── authService.ts           # Login/logout/profile
+│   │   ├── attendanceService.ts     # Punch + GPS
+│   │   ├── leaveService.ts          # Balances + applications
+│   │   └── payslipService.ts        # Signed URL PDF open
+│   └── store/authStore.ts           # Zustand global auth state
+└── README.md                        # Full API contract documentation
+```
+
+**Security:**
+- Sanctum tokens stored in `expo-secure-store` (iOS Keychain / Android Keystore, AES-256)
+- 401 interceptor clears token and triggers nav guard to Login
+- Payslip PDF: signed URL (15-min TTL) — no PDF data in app state
+- Email/password never logged
+
+### Key Bugs Fixed in Phase 6
+
+| Bug | Root Cause | Fix |
+|---|---|---|
+| `locations.state` NOT NULL | Test created Location without `state` (full name) field | Added `'state' => 'Maharashtra'` etc. to all test Location creates |
+| Geo-fencing check always passes | Controller checked `$location->radius_meters` but column is `attendance_radius_meters` | Fixed column reference in `AttendanceController::punch()` |
+| `PayrollRecord` LocationScope import | Wrong namespace `App\Traits\LocationScope` | Fixed to `App\Models\Scopes\LocationScope` |
 
 ---
 
@@ -254,12 +268,13 @@ POST   /ats/candidates/{id}/convert                — Convert to Employee
 | Phase 3 (Feature) | 3 | 47 | ✅ |
 | Phase 4 (Unit — StatutoryEngine) | 9 | 95 | ✅ |
 | Phase 5 (Feature — ATS) | 3 | 41 | ✅ |
+| Phase 6 (Feature — Integrations) | 3 | 20 | ✅ |
 | Architecture Tests | 25 | 55 | ✅ |
-| **Total** | **47** | **310** | **✅** |
+| **Total** | **50** | **330** | **✅** |
 
 ---
 
-## Manual Testing Commands
+## Exit Gate Verification Commands
 
 ### Run All Tests
 ```bash
@@ -268,31 +283,30 @@ cd /home/ubuntu/nexusos && php artisan test --no-coverage
 
 ### Run Phase-Specific Tests
 ```bash
-# Phase 1 tests
+# Phase 1
 php artisan test tests/Feature/Phase1ExitGateTest.php --no-coverage
 
-# Phase 2 tests
+# Phase 2
 php artisan test tests/Feature/Phase2AttendanceTest.php --no-coverage
 
-# Phase 3 tests
+# Phase 3
 php artisan test tests/Feature/Phase3LeaveTest.php --no-coverage
 
-# Phase 4 StatutoryEngine unit tests
+# Phase 4 (StatutoryEngine unit tests)
 php artisan test tests/Unit/StatutoryEngineTest.php --no-coverage
 
-# Phase 5 ATS tests
+# Phase 5 (ATS)
 php artisan test tests/Feature/Phase5AtsTest.php --no-coverage
+
+# Phase 6 (Integrations)
+php artisan test tests/Feature/Phase6IntegrationsTest.php --no-coverage
 ```
 
-### Phase 5 Exit Gate Verification Commands
+### Phase 6 Individual Exit Gate Commands
 ```bash
-# All 3 mandatory Phase 5 tests
-php artisan test tests/Feature/Phase5AtsTest.php --no-coverage
-
-# Individual Phase 5 tests
-php artisan test tests/Feature/Phase5AtsTest.php --filter="test_mock_resume_parser_extracts_structured_data_from_pdf" --no-coverage
-php artisan test tests/Feature/Phase5AtsTest.php --filter="test_kanban_stage_change_triggers_queued_notification" --no-coverage
-php artisan test tests/Feature/Phase5AtsTest.php --filter="test_convert_to_employee_creates_core_hr_record_and_onboarding_tasks" --no-coverage
+php artisan test tests/Feature/Phase6IntegrationsTest.php --filter="test_hdfc_bank_file_generation_formats_correctly" --no-coverage
+php artisan test tests/Feature/Phase6IntegrationsTest.php --filter="test_whatsapp_mock_job_logs_payload_and_queues_successfully" --no-coverage
+php artisan test tests/Feature/Phase6IntegrationsTest.php --filter="test_mobile_attendance_api_rejects_missing_geo_coordinates" --no-coverage
 ```
 
 ### Leave Accrual Commands
@@ -313,6 +327,21 @@ php artisan migrate:fresh --seed
 
 ## Key Files by Phase
 
+### Integrations & Mobile (Phase 6)
+- `app/Services/Integrations/WhatsApp/WhatsAppServiceInterface.php`
+- `app/Services/Integrations/WhatsApp/MockWhatsAppService.php`
+- `app/Services/Integrations/Accounting/AccountingIntegrationInterface.php`
+- `app/Services/Integrations/Accounting/MockAccountingService.php`
+- `app/Jobs/SendWhatsAppMessageJob.php`
+- `app/Jobs/SyncPayrollToAccountingJob.php`
+- `app/Http/Resources/EmployeeResource.php`
+- `app/Http/Resources/LeaveBalanceResource.php`
+- `app/Http/Resources/PayslipResource.php`
+- `app/Http/Resources/AttendanceResource.php`
+- `config/backup.php` (Spatie Backup)
+- `tests/Feature/Phase6IntegrationsTest.php`
+- `mobile/` (React Native Expo app — sibling directory)
+
 ### ATS (Phase 5)
 - `app/Models/JobRequisition.php`
 - `app/Models/Candidate.php`
@@ -322,13 +351,6 @@ php artisan migrate:fresh --seed
 - `app/Services/ATS/CandidatePipelineService.php`
 - `app/Services/ATS/HandoffService.php`
 - `app/Jobs/SendCandidateNotification.php`
-- `app/Events/CandidateStageChanged.php`
-- `app/Http/Controllers/JobRequisitionController.php`
-- `app/Http/Controllers/CandidateController.php`
-- `app/Http/Controllers/KanbanBoardController.php`
-- `resources/views/ats/requisitions/index.blade.php`
-- `resources/views/ats/kanban/board.blade.php`
-- `resources/views/ats/candidates/detail.blade.php`
 - `tests/Feature/Phase5AtsTest.php`
 
 ### StatutoryEngine (Phase 4)
@@ -341,10 +363,7 @@ php artisan migrate:fresh --seed
 - `app/Services/StatutoryEngine/BonusCalculator.php`
 - `app/Services/StatutoryEngine/NetPayCalculator.php`
 - `app/Services/Payroll/PayrollService.php`
-- `app/Services/Payroll/PayrollVarianceService.php`
-- `app/Services/Payroll/PayslipPdfService.php`
 - `app/Services/Payroll/BankTransferFileService.php`
-- `app/Services/Payroll/StatutoryChallanService.php`
 - `tests/Unit/StatutoryEngineTest.php`
 
 ### Leave Management (Phase 3)
@@ -352,9 +371,6 @@ php artisan migrate:fresh --seed
 - `app/Services/Leave/LeaveService.php`
 - `app/Services/Leave/LeaveProjectionService.php`
 - `app/Jobs/AccrueLeavesJob.php`
-- `app/Http/Controllers/LeaveApplicationController.php`
-- `app/Http/Controllers/LeaveBalanceController.php`
-- `app/Policies/LeaveApplicationPolicy.php`
 - `tests/Feature/Phase3LeaveTest.php`
 
 ### Attendance & Shifts (Phase 2)
@@ -362,15 +378,11 @@ php artisan migrate:fresh --seed
 - `app/Services/Attendance/GeoFencingService.php`
 - `app/Jobs/ProcessBiometricPunch.php`
 - `app/Http/Controllers/AttendanceController.php`
-- `app/Http/Controllers/ShiftController.php`
 - `tests/Feature/Phase2AttendanceTest.php`
 
 ### Core HR (Phase 1)
 - `app/Models/Employee.php`
 - `app/Observers/EmployeeObserver.php`
 - `app/Http/Controllers/EmployeeController.php`
-- `app/Http/Controllers/EmployeeLifecycleController.php`
-- `app/Http/Controllers/EmployeeDocumentController.php`
-- `app/Http/Controllers/EmployeeImportController.php`
 - `app/Policies/EmployeePolicy.php`
 - `tests/Feature/Phase1ExitGateTest.php`

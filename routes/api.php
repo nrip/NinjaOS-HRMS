@@ -54,3 +54,60 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('attendance.reject-regularization');
     });
 });
+
+// ── Phase 6: Mobile API routes with rate limiting ────────────────────────────
+// throttle:60,1 = 60 requests per minute per IP/user
+Route::middleware(['auth:sanctum', 'throttle:60,1'])->prefix('v1/mobile')->group(function () {
+
+    // Employee profile (self)
+    Route::get('/profile', function (Request $request) {
+        $employee = \App\Models\Employee::withoutGlobalScopes()
+            ->with(['location', 'department', 'designation'])
+            ->where('user_id', $request->user()->id)
+            ->first();
+        if (! $employee) {
+            return response()->json(['message' => 'Employee profile not found.'], 404);
+        }
+        return new \App\Http\Resources\EmployeeResource($employee);
+    })->name('mobile.profile');
+
+    // Leave balances (self)
+    Route::get('/leave-balances', function (Request $request) {
+        $employee = \App\Models\Employee::withoutGlobalScopes()
+            ->where('user_id', $request->user()->id)->first();
+        if (! $employee) {
+            return response()->json(['message' => 'Employee profile not found.'], 404);
+        }
+        $balances = \App\Models\LeaveBalance::where('employee_id', $employee->id)
+            ->where('year', now()->year)
+            ->get();
+        return \App\Http\Resources\LeaveBalanceResource::collection($balances);
+    })->name('mobile.leave-balances');
+
+    // Payslips (self)
+    Route::get('/payslips', function (Request $request) {
+        $employee = \App\Models\Employee::withoutGlobalScopes()
+            ->where('user_id', $request->user()->id)->first();
+        if (! $employee) {
+            return response()->json(['message' => 'Employee profile not found.'], 404);
+        }
+        $payslips = \App\Models\PayrollRecord::where('employee_id', $employee->id)
+            ->where('status', 'finalized')
+            ->orderByDesc('payroll_year')
+            ->orderByDesc('payroll_month')
+            ->limit(12)
+            ->get();
+        return \App\Http\Resources\PayslipResource::collection($payslips);
+    })->name('mobile.payslips');
+});
+
+// ── Signed payslip PDF download route ────────────────────────────────────────
+// This route validates the signed URL before serving the PDF.
+Route::middleware(['auth:sanctum', 'signed'])->get('/v1/payroll/{record}/pdf', function (\App\Models\PayrollRecord $record) {
+    $employee = \App\Models\Employee::withoutGlobalScopes()->find($record->employee_id);
+    $pdf = app(\App\Services\Payroll\PayslipPdfService::class)->generate($record, $employee);
+    return response($pdf, 200, [
+        'Content-Type'        => 'application/pdf',
+        'Content-Disposition' => "inline; filename=\"payslip_{$record->employee_code}_{$record->payroll_year}_{$record->payroll_month}.pdf\"",
+    ]);
+})->name('api.payroll.pdf');

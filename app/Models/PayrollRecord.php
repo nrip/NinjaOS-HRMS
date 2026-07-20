@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
-use App\Traits\LocationScope;
+use App\Models\Scopes\LocationScope;
 
 class PayrollRecord extends Model
 {
-    use SoftDeletes, LocationScope;
+    use SoftDeletes;
 
     protected $fillable = [
         'payroll_id', 'employee_id', 'employee_code', 'location_id', 'state_code',
@@ -48,6 +48,8 @@ class PayrollRecord extends Model
     protected static function boot(): void
     {
         parent::boot();
+        // Apply LocationScope so Location HR can only see their location's payroll records.
+        static::addGlobalScope(new LocationScope());
         static::creating(function (self $model) {
             if (empty($model->payroll_id)) {
                 $model->payroll_id = (string) Str::uuid();
