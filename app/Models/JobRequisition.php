@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Scopes\LocationScope;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class JobRequisition extends Model
 {
@@ -33,10 +35,25 @@ class JobRequisition extends Model
         'closing_date' => 'date',
     ];
 
-    protected static function boot()
+    public const STATUSES = [
+        'draft',
+        'pending_location_hr',
+        'pending_central_hr',
+        'open',
+        'closed',
+        'cancelled',
+        'rejected',
+    ];
+
+    protected static function booted(): void
     {
-        parent::boot();
         static::addGlobalScope(new LocationScope());
+
+        static::creating(function (self $model): void {
+            if (empty($model->requisition_id)) {
+                $model->requisition_id = (string) Str::uuid();
+            }
+        });
     }
 
     public function location(): BelongsTo
@@ -62,5 +79,20 @@ class JobRequisition extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function candidates(): HasMany
+    {
+        return $this->hasMany(Candidate::class, 'requisition_id');
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status === 'open';
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return in_array($this->status, ['pending_location_hr', 'pending_central_hr'], true);
     }
 }

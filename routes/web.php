@@ -68,4 +68,30 @@ Route::middleware('auth')->group(function () {
         Route::post('/{payrollRecord}/approve',               [\App\Http\Controllers\PayrollController::class, 'approve'])->name('approve');
         Route::post('/{payrollRecord}/acknowledge-variance',  [\App\Http\Controllers\PayrollController::class, 'acknowledgeVariance'])->name('acknowledge-variance');
     });
+
+    // Phase 5: Applicant Tracking System (ATS)
+    Route::prefix('ats')->name('ats.')->group(function () {
+        // Job Requisitions
+        Route::prefix('requisitions')->name('requisitions.')->group(function () {
+            Route::get('/',                                    [\App\Http\Controllers\JobRequisitionController::class, 'index'])->name('index');
+            Route::get('/create',                             [\App\Http\Controllers\JobRequisitionController::class, 'create'])->name('create');
+            Route::post('/',                                  [\App\Http\Controllers\JobRequisitionController::class, 'store'])->name('store');
+            Route::get('/{requisition}',                      [\App\Http\Controllers\JobRequisitionController::class, 'show'])->name('show');
+            Route::post('/{requisition}/submit',              [\App\Http\Controllers\JobRequisitionController::class, 'submit'])->name('submit');
+            Route::post('/{requisition}/approve',             [\App\Http\Controllers\JobRequisitionController::class, 'approve'])->name('approve');
+            Route::post('/{requisition}/reject',              [\App\Http\Controllers\JobRequisitionController::class, 'reject'])->name('reject');
+            Route::post('/{requisition}/candidates',          [\App\Http\Controllers\CandidateController::class, 'store'])->name('candidates.store');
+        });
+        // Kanban Board
+        Route::prefix('kanban')->name('kanban.')->group(function () {
+            Route::get('/{requisition}',       [\App\Http\Controllers\KanbanBoardController::class, 'board'])->name('board');
+            Route::get('/{requisition}/data',  [\App\Http\Controllers\KanbanBoardController::class, 'boardData'])->name('data');
+        });
+        // Candidates
+        Route::prefix('candidates')->name('candidates.')->group(function () {
+            Route::get('/{candidate}',              [\App\Http\Controllers\CandidateController::class, 'show'])->name('show');
+            Route::patch('/{candidate}/move-stage', [\App\Http\Controllers\CandidateController::class, 'moveStage'])->name('move-stage');
+            Route::post('/{candidate}/convert',     [\App\Http\Controllers\CandidateController::class, 'convertToEmployee'])->name('convert');
+        });
+    });
 });

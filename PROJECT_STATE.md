@@ -1,10 +1,10 @@
 # NexusOS Project State
 
-**Current Phase:** Phase 4 - Payroll & Statutory Compliance (COMPLETE ✅)
+**Current Phase:** Phase 5 - Applicant Tracking System (COMPLETE ✅)
 
-**Last Updated:** 2026-07-20 16:00 GMT+5:30
+**Last Updated:** 2026-07-20 17:00 GMT+5:30
 
-**Status:** Phase 4 Complete - Ready for Phase 5 (Reports & Analytics)
+**Status:** Phase 5 Complete - Ready for Phase 6 (Integrations & Mobile)
 
 ---
 
@@ -33,7 +33,6 @@
 ✓ csv_import_validation: CSV import validation catches duplicates
 
 Tests: 4 passed (11 assertions)
-Duration: 0.39s
 ```
 
 ### Implemented Features
@@ -58,7 +57,6 @@ Duration: 0.39s
 ✓ test_ot_calculation_uses_config_values_and_shift_timings
 
 Tests: 3 passed (61 assertions)
-Duration: 0.57s
 ```
 
 ### Implemented Features
@@ -81,7 +79,6 @@ Duration: 0.57s
 ✓ test_leave_approval_workflow_updates_balance_and_creates_audit_log
 
 Tests: 3 passed (47 assertions)
-Duration: 0.66s
 ```
 
 ### Implemented Features
@@ -116,160 +113,134 @@ PASS  Tests\Unit\StatutoryEngineTest
 ✓ it test_payroll_variance_report_flags_greater_than_5_percent_change
 
 Tests: 9 passed (95 assertions)
-Duration: 0.24s
-```
-
-### Full Test Suite: 44/44 PASSED ✅
-
-```
-Tests: 44 passed (269 assertions)
-Duration: 2.03s
 ```
 
 ### Implemented Features
 
-#### 1. Isolated StatutoryEngine (Pure PHP, No Eloquent) ✅
+- Isolated StatutoryEngine (7 pure PHP calculators, zero Eloquent): PF, ESI, PT, TDS, Gratuity, Bonus, NetPay
+- 100% config-driven statutory rules from `config/statutory.php`
+- LWP proration formula: `(Component / Total Working Days) × LWP Days`
+- PayrollInputDTO with `taxRegime` ('old'|'new') and `investmentDeclarations`
+- Payroll Variance Report (>5% change flagged, finalization blocked until acknowledged)
+- Phase 1 & 3 integration: LWP deductions, leave encashment, notice pay recovery
+- Payslip PDF (DomPDF), Bank Transfer File (HDFC NEFT CSV), Statutory Challans (PF ECR, ESI, PT)
+- Parallel Run Reconciliation: `legacy_net_pay` column, tolerance ±₹1
 
-All calculator classes live in `app/Services/StatutoryEngine/` and accept DTOs/arrays, returning calculated values. Zero Eloquent dependencies inside the math logic — trivially unit-testable.
+---
 
-| Calculator | Responsibility |
-|---|---|
-| `PfCalculator` | PF wage ceiling (₹15,000), employee 12%, employer split (EPS 8.33% / EPF 3.67%), EDLI |
-| `EsiCalculator` | ESI wage ceiling (₹21,000; ₹25,000 for disabled), employee 0.75%, employer 3.25% |
-| `PtCalculator` | 9-state PT slabs from config; DL/HR = nil, MH = ₹200 max |
-| `TdsCalculator` | Old/new regime slabs, standard deduction, investment declarations, monthly projection |
-| `GratuityCalculator` | 15-day formula, ₹20 Lakh ceiling, 5-year eligibility threshold |
-| `BonusCalculator` | Bonus Act ₹21,000 eligibility ceiling, 8.33%–20% range from config |
-| `NetPayCalculator` | Orchestrates all calculators; LWP proration formula |
+## Phase 5: Applicant Tracking System (COMPLETE ✅)
 
-#### 2. 100% Config-Driven Rules ✅
-
-All statutory ceilings and rates in `config/statutory.php` under the `payroll` key:
-- PF wage ceiling: ₹15,000 (with 8.33% EPS split)
-- ESI wage ceiling: ₹21,000 (₹25,000 for disabled)
-- PT slabs: All 9 states explicitly defined by ISO state code
-- Gratuity ceiling: ₹20 Lakh
-- Bonus Act ceiling: ₹21,000
-- Variance threshold: 5%
-- **Zero hardcoded numbers in any calculator class**
-
-#### 3. LWP Proration Formula ✅
+### Exit Gate Tests: 3/3 PASSED ✅
 
 ```
-LWP Deduction = (Component Salary / Total Working Days) × LWP Days
+PASS  Tests\Feature\Phase5AtsTest
+✓ it test_mock_resume_parser_extracts_structured_data_from_pdf
+✓ it test_kanban_stage_change_triggers_queued_notification
+✓ it test_convert_to_employee_creates_core_hr_record_and_onboarding_tasks
+
+Tests: 3 passed (41 assertions)
+Duration: 0.76s
 ```
 
-Applied per component (Basic, HRA, Special Allowance) separately. Tested in `test_lwp_deduction_prorates_basic_and_allowances_correctly`.
+### Implemented Features
 
-#### 4. PayrollInputDTO ✅
+#### 1. Job Requisition Workflow ✅
 
-```php
-// app/Services/StatutoryEngine/DTOs/PayrollInputDTO.php
-public string $employeeId
-public string $employeeCode
-public string $stateCode          // ISO 3166-2 (MH, KA, DL, HR, UP, GJ, WB, JH, GA)
-public float  $grossSalary
-public float  $basicSalary
-public float  $hra
-public float  $specialAllowance
-public int    $totalWorkingDays
-public float  $lwpDays
-public float  $otEarnings
-public float  $encashmentDays
-public float  $noticePayRecovery
-public bool   $optedForPf
-public bool   $isEsiEligible
-public int    $yearsOfService
-public string $taxRegime          // 'old' | 'new'
-public array  $investmentDeclarations
-public int    $payrollMonth
-public int    $payrollYear
+State machine: `draft` → `submitted` → `approved` / `rejected` → `open` → `closed`
+
+- Manager raises a hiring request with location, department, designation, and JD
+- Multi-level approval: Manager → Location HR → Central HR
+- LocationScope enforced: Location HR can only see requisitions for their location
+- Published requisitions are visible to recruiters for candidate intake
+
+#### 2. Mock Resume Parser (Sovren/Textkernel Contract) ✅
+
+```json
+// POST /mock-parser-api/parse
+// Input: PDF or DOCX file
+// Output:
+{
+  "status": "success",
+  "data": {
+    "first_name":       "string",
+    "last_name":        "string",
+    "email":            "string",
+    "phone":            "string",
+    "skills":           ["string"],
+    "experience_years": 4.5,
+    "education": [
+      { "degree": "string", "institution": "string", "year_of_passing": 2018 }
+    ]
+  }
+}
 ```
 
-#### 5. Payroll Variance Report ✅
+- Resume stored via Spatie MediaLibrary (collection: `resumes`) — consistent with Phase 1
+- PII (email, phone) is **never written to application logs** (DPDP compliance)
+- Only non-PII metadata logged: `candidate_uuid`, `file_name`, `file_size_kb`
+- Production: replace `callMockParserApi()` with HTTP POST to Sovren/Textkernel endpoint
 
-- `PayrollVarianceService::generateReport()` compares current vs previous month net pay
-- Any employee with >5% change is flagged (`variance_flag = true`)
-- Finalization is BLOCKED until all variance flags are acknowledged by HR
-- `acknowledgeVariance()` method records the acknowledging user ID and timestamp
-- Variance report view at `/payroll/reports/variance`
+#### 3. Kanban Pipeline (Alpine.js) ✅
 
-#### 6. Phase 1 & Phase 3 Integration ✅
+7 stages: `applied` → `screened` → `interview_1` → `interview_2` → `offer` → `hired` / `rejected`
 
-- **LWP deductions**: `PayrollService` reads approved `UL` (Unpaid Leave) applications from Phase 3 `LeaveApplication` model
-- **Leave Encashment**: reads `encashment_days_this_month` from Phase 3 `LeaveBalance` model
-- **Notice Pay Recovery**: reads `notice_pay_recovery_amount` from Phase 1 `Employee` lifecycle data
+- Drag-and-drop Kanban board at `/ats/kanban/{requisition}`
+- `CandidatePipelineService::moveToStage()` enforces state machine transitions
+- `CandidateStageHistory` records every transition with `from_stage`, `to_stage`, `moved_by`, `moved_at`
+- `rejection_reason` is **required** when moving to `rejected` stage (stored on both `Candidate` and `CandidateStageHistory`)
 
-#### 7. Payslip Generation ✅
+#### 4. Automated Communications ✅
 
-- `PayslipPdfService` renders `payroll/payslip_pdf.blade.php` via DomPDF
-- Payslip shows: employee details, earnings breakdown, deductions breakdown, net pay, employer contributions
-- Download endpoint: `GET /payroll/{record}/pdf`
-- Screen view: `GET /payroll/{record}` → `payroll/payslip.blade.php`
+- `SendCandidateNotification` job dispatched to queue on every stage change
+- Stage-specific templates: interview scheduled, offer extended, rejection (with `rejection_reason` injected)
+- Queue-based (non-blocking): `Queue::fake()` verified in tests
 
-#### 8. Bank Transfer File (HDFC NEFT Format) ✅
+#### 5. Convert to Employee (Phase 1 Handoff) ✅
 
-- `BankTransferFileService::generateHdfcCsv()` generates HDFC Salary Upload CSV
-- Format: Sr No | Beneficiary Name | Account Number | IFSC Code | Amount | Remarks
-- Only includes `finalized` payroll records
+One-click action on "Hired" candidate:
 
-#### 9. Statutory Challans ✅
+1. `HandoffService::convertToEmployee()` runs in a DB transaction
+2. Creates `Employee` record with `status = 'onboarding'`
+3. Pre-fills: `first_name`, `last_name`, `email`, `phone`, `date_of_joining`, `location_id`, `department_id`, `designation_id`
+4. Phase 1 `EmployeeObserver` auto-generates `employee_code` (`EMP-{STATE_CODE}-{SEQUENCE}`)
+5. `EmployeeLifecycleHistory` record created explicitly (HandoffService owns this, not the observer)
+6. Candidate updated: `converted_to_employee_id`, `converted_at`
+7. Candidate UUID primary key ensures DPDP compliance
 
-- `StatutoryChallanService::generatePfEcr()` — EPFO ECR format (tilde-delimited)
-- `StatutoryChallanService::generateEsiChallan()` — ESIC portal CSV format
-- `StatutoryChallanService::generatePtChallanSummary()` — PT summary grouped by state
+#### 6. DPDP Compliance ✅
 
-#### 10. Payroll Workflow ✅
+- `Candidate` model uses UUID primary key (`candidate_id`) — no sequential ID exposure
+- PII never logged (email, phone excluded from all log calls)
+- `rejection_reason` stored for audit trail
 
-State machine: `draft` → `approved` → `finalized`
+### Database Migrations Added (Phase 5)
 
-1. HR clicks "Process Payroll" → creates `draft` records for all active employees
-2. Variance report generated automatically; flagged records require HR acknowledgment
-3. HR approves individual records (`draft` → `approved`)
-4. HR clicks "Finalize Payroll" (blocked if unacknowledged variances exist)
-5. All `approved` records → `finalized`; bank file and challans become downloadable
-
-#### 11. Parallel Run Reconciliation ✅
-
-- `legacy_net_pay` column on `payroll_records` for importing legacy system data
-- `reconciliation_variance` = NinjaOS net pay − legacy net pay
-- `reconciliation_cleared` flag for HR sign-off
-- Reconciliation view at `/payroll/reports/reconciliation`
-- Tolerance: ±₹1 (rounding differences acceptable)
-
-### Database Migrations Added (Phase 4)
-
-- `2026_07_19_185817_create_payroll_records_table.php` — Updated with full Phase 4 schema (variance, reconciliation, statutory breakdown columns)
-- `2026_07_20_154543_create_payroll_line_items_table.php` — Line items for payslip components
+- `2026_07_20_161000_create_candidates_table.php` — UUID PK, Spatie MediaLibrary compatible, rejection_reason, converted_to_employee_id
+- `2026_07_20_161001_create_candidate_stage_histories_table.php` — full audit trail with rejection_reason
 
 ### Key Services
 
-- `app/Services/StatutoryEngine/DTOs/PayrollInputDTO.php` — Data transfer object
-- `app/Services/StatutoryEngine/PfCalculator.php` — PF + EPS + EDLI
-- `app/Services/StatutoryEngine/EsiCalculator.php` — ESI employee + employer
-- `app/Services/StatutoryEngine/PtCalculator.php` — 9-state PT slabs
-- `app/Services/StatutoryEngine/TdsCalculator.php` — Old/new regime TDS
-- `app/Services/StatutoryEngine/GratuityCalculator.php` — Gratuity with ceiling
-- `app/Services/StatutoryEngine/BonusCalculator.php` — Bonus Act
-- `app/Services/StatutoryEngine/NetPayCalculator.php` — Orchestrator
-- `app/Services/Payroll/PayrollService.php` — Full payroll run orchestration
-- `app/Services/Payroll/PayrollVarianceService.php` — Variance report + acknowledgment
-- `app/Services/Payroll/PayslipPdfService.php` — Payslip PDF generation
-- `app/Services/Payroll/BankTransferFileService.php` — HDFC NEFT CSV
-- `app/Services/Payroll/StatutoryChallanService.php` — PF ECR, ESI, PT challans
+- `app/Services/ATS/ResumeParserService.php` — Mock parser + Spatie MediaLibrary storage
+- `app/Services/ATS/RequisitionService.php` — Multi-level approval workflow
+- `app/Services/ATS/CandidatePipelineService.php` — Kanban stage management + notification dispatch
+- `app/Services/ATS/HandoffService.php` — ATS → Core HR bridge
 
 ### Web Routes Added
 
 ```
-GET    /payroll                                  — Payroll index (list records)
-POST   /payroll/process                          — Process payroll (create drafts)
-POST   /payroll/finalize                         — Finalize payroll (lock records)
-GET    /payroll/reports/variance                 — Variance report
-GET    /payroll/reports/reconciliation           — Parallel run reconciliation
-GET    /payroll/{record}                         — Payslip screen view
-GET    /payroll/{record}/pdf                     — Payslip PDF download
-POST   /payroll/{record}/approve                 — Approve a payroll record
-POST   /payroll/{record}/acknowledge-variance    — Acknowledge variance flag
+GET    /ats/requisitions                           — Requisitions index
+GET    /ats/requisitions/create                    — New requisition form
+POST   /ats/requisitions                           — Store requisition
+GET    /ats/requisitions/{id}                      — Requisition detail
+POST   /ats/requisitions/{id}/submit               — Submit for approval
+POST   /ats/requisitions/{id}/approve              — Approve requisition
+POST   /ats/requisitions/{id}/reject               — Reject requisition
+POST   /ats/requisitions/{id}/candidates           — Add candidate to requisition
+GET    /ats/kanban/{id}                            — Kanban board view
+GET    /ats/kanban/{id}/data                       — Kanban board JSON data
+GET    /ats/candidates/{id}                        — Candidate detail
+PATCH  /ats/candidates/{id}/move-stage             — Move Kanban stage
+POST   /ats/candidates/{id}/convert                — Convert to Employee
 ```
 
 ---
@@ -282,8 +253,9 @@ POST   /payroll/{record}/acknowledge-variance    — Acknowledge variance flag
 | Phase 2 (Feature) | 3 | 61 | ✅ |
 | Phase 3 (Feature) | 3 | 47 | ✅ |
 | Phase 4 (Unit — StatutoryEngine) | 9 | 95 | ✅ |
+| Phase 5 (Feature — ATS) | 3 | 41 | ✅ |
 | Architecture Tests | 25 | 55 | ✅ |
-| **Total** | **44** | **269** | **✅** |
+| **Total** | **47** | **310** | **✅** |
 
 ---
 
@@ -307,18 +279,20 @@ php artisan test tests/Feature/Phase3LeaveTest.php --no-coverage
 
 # Phase 4 StatutoryEngine unit tests
 php artisan test tests/Unit/StatutoryEngineTest.php --no-coverage
+
+# Phase 5 ATS tests
+php artisan test tests/Feature/Phase5AtsTest.php --no-coverage
 ```
 
-### Phase 4 Exit Gate Verification Commands
+### Phase 5 Exit Gate Verification Commands
 ```bash
-# Run all 9 Phase 4 mandatory StatutoryEngine unit tests
-php artisan test tests/Unit/StatutoryEngineTest.php --no-coverage
+# All 3 mandatory Phase 5 tests
+php artisan test tests/Feature/Phase5AtsTest.php --no-coverage
 
-# Run individual Phase 4 tests
-php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_pf_calculation_respects_15k_ceiling_and_eps_split" --no-coverage
-php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_pt_calculation_applies_correct_state_slab_and_haryana_nil" --no-coverage
-php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_payroll_variance_report_flags_greater_than_5_percent_change" --no-coverage
-php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_lwp_deduction_prorates_basic_and_allowances_correctly" --no-coverage
+# Individual Phase 5 tests
+php artisan test tests/Feature/Phase5AtsTest.php --filter="test_mock_resume_parser_extracts_structured_data_from_pdf" --no-coverage
+php artisan test tests/Feature/Phase5AtsTest.php --filter="test_kanban_stage_change_triggers_queued_notification" --no-coverage
+php artisan test tests/Feature/Phase5AtsTest.php --filter="test_convert_to_employee_creates_core_hr_record_and_onboarding_tasks" --no-coverage
 ```
 
 ### Leave Accrual Commands
@@ -337,7 +311,25 @@ php artisan migrate:fresh --seed
 
 ---
 
-## Key Files
+## Key Files by Phase
+
+### ATS (Phase 5)
+- `app/Models/JobRequisition.php`
+- `app/Models/Candidate.php`
+- `app/Models/CandidateStageHistory.php`
+- `app/Services/ATS/ResumeParserService.php`
+- `app/Services/ATS/RequisitionService.php`
+- `app/Services/ATS/CandidatePipelineService.php`
+- `app/Services/ATS/HandoffService.php`
+- `app/Jobs/SendCandidateNotification.php`
+- `app/Events/CandidateStageChanged.php`
+- `app/Http/Controllers/JobRequisitionController.php`
+- `app/Http/Controllers/CandidateController.php`
+- `app/Http/Controllers/KanbanBoardController.php`
+- `resources/views/ats/requisitions/index.blade.php`
+- `resources/views/ats/kanban/board.blade.php`
+- `resources/views/ats/candidates/detail.blade.php`
+- `tests/Feature/Phase5AtsTest.php`
 
 ### StatutoryEngine (Phase 4)
 - `app/Services/StatutoryEngine/DTOs/PayrollInputDTO.php`
@@ -353,8 +345,6 @@ php artisan migrate:fresh --seed
 - `app/Services/Payroll/PayslipPdfService.php`
 - `app/Services/Payroll/BankTransferFileService.php`
 - `app/Services/Payroll/StatutoryChallanService.php`
-- `app/Http/Controllers/PayrollController.php`
-- `app/Policies/PayrollPolicy.php`
 - `tests/Unit/StatutoryEngineTest.php`
 
 ### Leave Management (Phase 3)
@@ -365,6 +355,7 @@ php artisan migrate:fresh --seed
 - `app/Http/Controllers/LeaveApplicationController.php`
 - `app/Http/Controllers/LeaveBalanceController.php`
 - `app/Policies/LeaveApplicationPolicy.php`
+- `tests/Feature/Phase3LeaveTest.php`
 
 ### Attendance & Shifts (Phase 2)
 - `app/Services/Attendance/AttendanceService.php`
@@ -372,14 +363,14 @@ php artisan migrate:fresh --seed
 - `app/Jobs/ProcessBiometricPunch.php`
 - `app/Http/Controllers/AttendanceController.php`
 - `app/Http/Controllers/ShiftController.php`
+- `tests/Feature/Phase2AttendanceTest.php`
 
 ### Core HR (Phase 1)
 - `app/Models/Employee.php`
 - `app/Observers/EmployeeObserver.php`
-- `app/Services/EmployeeImportService.php`
 - `app/Http/Controllers/EmployeeController.php`
 - `app/Http/Controllers/EmployeeLifecycleController.php`
-
-### Configuration
-- `config/statutory.php` — All statutory rules: OT, PF, ESI, PT, TDS, Gratuity, Bonus, Leave
-- `config/nexusos.php` — Application-level config
+- `app/Http/Controllers/EmployeeDocumentController.php`
+- `app/Http/Controllers/EmployeeImportController.php`
+- `app/Policies/EmployeePolicy.php`
+- `tests/Feature/Phase1ExitGateTest.php`
