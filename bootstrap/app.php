@@ -13,6 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Exclude all web routes from CSRF (API uses Sanctum tokens instead)
+        // In production, re-enable CSRF for web routes that use sessions
+        $middleware->validateCsrfTokens(except: ['*']);
+
+        // Append EnforceLocationScope to the API middleware group
         $middleware->api(append: [
             \App\Http\Middleware\EnforceLocationScope::class,
         ]);

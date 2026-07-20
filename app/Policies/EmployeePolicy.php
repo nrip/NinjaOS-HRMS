@@ -31,7 +31,7 @@ class EmployeePolicy
         }
 
         // Location HR can view employees in their location
-        if ($user->hasRole('location_hr') && $user->employee?->location_id === $employee->location_id) {
+        if ($user->hasRole('location_hr') && $user->location_id === $employee->location_id) {
             return true;
         }
 
@@ -72,7 +72,7 @@ class EmployeePolicy
         }
 
         // Location HR can update employees in their location
-        if ($user->hasRole('location_hr') && $user->employee?->location_id === $employee->location_id) {
+        if ($user->hasRole('location_hr') && $user->location_id === $employee->location_id) {
             return true;
         }
 

@@ -22,7 +22,11 @@ class EmployeeImportService
      */
     public function import(string $filePath, int $locationId, bool $dryRun = false): array
     {
-        HeadingRowFormatter::default('original');
+        // Reset state for each import call
+        $this->errors = [];
+        $this->imported = [];
+        $this->rowNumber = 0;
+        HeadingRowFormatter::default('none');
 
         try {
             $rows = Excel::toArray([], $filePath);
@@ -38,8 +42,9 @@ class EmployeeImportService
                 ];
             }
 
-            // Skip header row
+            // Extract header row and normalize keys (trim whitespace, lowercase)
             $headerRow = array_shift($data);
+            $headerRow = array_map(fn($h) => strtolower(trim((string) $h)), $headerRow);
 
             foreach ($data as $index => $row) {
                 $this->rowNumber = $index + 2; // +2 because of header and 0-indexing
@@ -49,7 +54,9 @@ class EmployeeImportService
                     continue;
                 }
 
-                $this->processRow($row, $locationId, $dryRun);
+                // Map numeric indices to named keys using header row
+                $namedRow = array_combine($headerRow, array_pad(array_values($row), count($headerRow), ''));
+                $this->processRow($namedRow, $locationId, $dryRun);
             }
 
             return [
@@ -107,7 +114,7 @@ class EmployeeImportService
             'gender' => 'required|in:male,female,other',
             'department_code' => 'required|string',
             'designation_code' => 'required|string',
-            'date_of_joining' => 'required|date_format:Y-m-d|after_or_equal:today',
+            'date_of_joining' => 'required|date_format:Y-m-d',
         ]);
 
         if ($validator->fails()) {
