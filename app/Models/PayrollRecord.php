@@ -6,49 +6,60 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Scopes\LocationScope;
+use Illuminate\Support\Str;
+use App\Traits\LocationScope;
 
 class PayrollRecord extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, LocationScope;
 
     protected $fillable = [
-        'payroll_id',
-        'location_id',
-        'employee_id',
-        'payroll_year',
-        'payroll_month',
-        'basic_salary',
-        'gross_salary',
-        'net_salary',
-        'pf_deduction',
-        'esi_deduction',
-        'pt_deduction',
-        'tds_deduction',
-        'other_deductions',
-        'other_earnings',
-        'status',
-        'approved_by',
-        'approved_at',
+        'payroll_id', 'employee_id', 'employee_code', 'location_id', 'state_code',
+        'payroll_month', 'payroll_year', 'tax_regime',
+        'gross_salary', 'basic_salary', 'hra', 'special_allowance',
+        'ot_earnings', 'encashment_payout',
+        'lwp_days', 'lwp_deduction', 'effective_gross',
+        'employee_pf', 'employer_pf', 'employee_esi', 'employer_esi',
+        'professional_tax', 'monthly_tds', 'notice_pay_recovery',
+        'total_deductions', 'net_pay',
+        'prev_net_pay', 'variance_percent', 'variance_flag',
+        'variance_acknowledged', 'variance_acknowledged_by', 'variance_acknowledged_at',
+        'payslip_snapshot',
+        'legacy_net_pay', 'reconciliation_variance', 'reconciliation_cleared',
+        'status', 'approved_by', 'approved_at', 'finalized_by', 'finalized_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
-        'basic_salary' => 'decimal:2',
-        'gross_salary' => 'decimal:2',
-        'net_salary' => 'decimal:2',
-        'pf_deduction' => 'decimal:2',
-        'esi_deduction' => 'decimal:2',
-        'pt_deduction' => 'decimal:2',
-        'tds_deduction' => 'decimal:2',
-        'other_deductions' => 'decimal:2',
-        'other_earnings' => 'decimal:2',
-        'approved_at' => 'datetime',
+        'payslip_snapshot'        => 'array',
+        'variance_flag'           => 'boolean',
+        'variance_acknowledged'   => 'boolean',
+        'reconciliation_cleared'  => 'boolean',
+        'approved_at'             => 'datetime',
+        'finalized_at'            => 'datetime',
+        'variance_acknowledged_at'=> 'datetime',
+        'lwp_days'                => 'float',
+        'gross_salary'            => 'float',
+        'net_pay'                 => 'float',
+        'prev_net_pay'            => 'float',
+        'variance_percent'        => 'float',
     ];
 
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
-        static::addGlobalScope(new LocationScope());
+        static::creating(function (self $model) {
+            if (empty($model->payroll_id)) {
+                $model->payroll_id = (string) Str::uuid();
+            }
+        });
+    }
+
+    // ── Relationships ─────────────────────────────────────────────────────────
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     public function location(): BelongsTo
@@ -56,18 +67,60 @@ class PayrollRecord extends Model
         return $this->belongsTo(Location::class);
     }
 
-    public function employee(): BelongsTo
+    public function lineItems(): HasMany
     {
-        return $this->belongsTo(Employee::class);
+        return $this->hasMany(PayrollLineItem::class);
     }
 
-    public function approver(): BelongsTo
+    public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function statutoryRecords(): HasMany
+    public function finalizedBy(): BelongsTo
     {
-        return $this->hasMany(StatutoryRecord::class);
+        return $this->belongsTo(User::class, 'finalized_by');
+    }
+
+    // ── State machine helpers ─────────────────────────────────────────────────
+
+    public function isDraft(): bool      { return $this->status === 'draft'; }
+    public function isApproved(): bool   { return $this->status === 'approved'; }
+    public function isFinalized(): bool  { return $this->status === 'finalized'; }
+    public function isRejected(): bool   { return $this->status === 'rejected'; }
+
+    public function approve(int $userId): void
+    {
+        $this->update([
+            'status'      => 'approved',
+            'approved_by' => $userId,
+            'approved_at' => now(),
+        ]);
+    }
+
+    public function finalize(int $userId): void
+    {
+        $this->update([
+            'status'       => 'finalized',
+            'finalized_by' => $userId,
+            'finalized_at' => now(),
+        ]);
+    }
+
+    public function reject(int $userId, string $reason): void
+    {
+        $this->update([
+            'status'           => 'rejected',
+            'rejection_reason' => $reason,
+        ]);
+    }
+
+    public function acknowledgeVariance(int $userId): void
+    {
+        $this->update([
+            'variance_acknowledged'    => true,
+            'variance_acknowledged_by' => $userId,
+            'variance_acknowledged_at' => now(),
+        ]);
     }
 }

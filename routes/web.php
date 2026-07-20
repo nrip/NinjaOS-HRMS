@@ -55,4 +55,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/balances',            [\App\Http\Controllers\LeaveBalanceController::class, 'index'])->name('balances');
         Route::get('/balances/projection', [\App\Http\Controllers\LeaveBalanceController::class, 'projection'])->name('balances.projection');
     });
+
+    // Phase 4: Payroll & Statutory Compliance
+    Route::prefix('payroll')->name('payroll.')->group(function () {
+        Route::get('/',                                       [\App\Http\Controllers\PayrollController::class, 'index'])->name('index');
+        Route::get('/reports/variance',                       [\App\Http\Controllers\PayrollController::class, 'varianceReport'])->name('variance');
+        Route::get('/reports/reconciliation',                 [\App\Http\Controllers\PayrollController::class, 'reconciliation'])->name('reconciliation');
+        Route::post('/process',                               [\App\Http\Controllers\PayrollController::class, 'process'])->name('process');
+        Route::post('/finalize',                              [\App\Http\Controllers\PayrollController::class, 'finalize'])->name('finalize');
+        Route::get('/{payrollRecord}',                        [\App\Http\Controllers\PayrollController::class, 'show'])->name('show');
+        Route::get('/{payrollRecord}/pdf',                    [\App\Http\Controllers\PayrollController::class, 'downloadPdf'])->name('payslip.pdf');
+        Route::post('/{payrollRecord}/approve',               [\App\Http\Controllers\PayrollController::class, 'approve'])->name('approve');
+        Route::post('/{payrollRecord}/acknowledge-variance',  [\App\Http\Controllers\PayrollController::class, 'acknowledgeVariance'])->name('acknowledge-variance');
+    });
 });

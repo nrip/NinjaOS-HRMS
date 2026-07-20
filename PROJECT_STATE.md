@@ -1,10 +1,10 @@
 # NexusOS Project State
 
-**Current Phase:** Phase 3 - Leave Management (COMPLETE ✅)
+**Current Phase:** Phase 4 - Payroll & Statutory Compliance (COMPLETE ✅)
 
-**Last Updated:** 2026-07-20 14:30 GMT+5:30
+**Last Updated:** 2026-07-20 16:00 GMT+5:30
 
-**Status:** Phase 3 Complete - Ready for Phase 4 (Payroll & Statutory Compliance)
+**Status:** Phase 4 Complete - Ready for Phase 5 (Reports & Analytics)
 
 ---
 
@@ -38,56 +38,13 @@ Duration: 0.39s
 
 ### Implemented Features
 
-#### 1. Employee CRUD ✅
-- Create, read, update, delete employees
-- Form validation (email unique per location, phone format, Aadhaar/PAN)
-- Authorization policy (role-based access control)
-- Soft deletes for audit trail
-
-#### 2. Employee Lifecycle Management ✅
-- Status transitions: onboarding → probation → confirmed → transferred → exit
-- Lifecycle history tracking (previous_status, new_status, reason, changed_by)
-- Probation period management
-- Confirmation date tracking
-
-#### 3. Employee Code Generation ✅
-- Auto-generated: `EMP-{STATE_CODE}-{SEQUENCE}`
-- Format: EMP-MA-00001 (Maharashtra, sequence 1)
-- Implemented via EmployeeObserver
-
-#### 4. Document Management (Spatie MediaLibrary) ✅
-- Upload documents, certificates, identification
-- Collections: documents, certificates, identification
-- Download and delete documents
-- File type validation (PDF, JPG, PNG)
-
-#### 5. CSV Import ✅
-- Bulk employee import via CSV
-- Validation with detailed error reporting
-- Dry-run mode for preview
-- Department/designation resolution by code
-- Duplicate email detection per location
-- CSV template download
-
-#### 6. Audit Logging (Spatie ActivityLog) ✅
-- Automatic logging of all employee mutations
-- No PII in logs (only IDs, status changes, dates)
-- Audit trail visible in employee detail view
-
-#### 7. Web UI ✅
-- Bootstrap 5 responsive layout
-- Employee list with DataTables (filterable, searchable, paginated)
-- Employee form (create/edit)
-- Employee detail view with lifecycle history and documents
-- CSV import form with template download
-- Status transition modal
-
-#### 8. Frontend Stack ✅
-- Bootstrap 5.3
-- Alpine.js 3.x
-- DataTables
-- jQuery 3.7
-- Vite asset bundling
+- Employee CRUD with form validation, authorization policy, soft deletes
+- Employee Lifecycle Management (onboarding → probation → confirmed → transferred → exit)
+- Employee Code Generation: `EMP-{STATE_CODE}-{SEQUENCE}` via EmployeeObserver
+- Document Management (Spatie MediaLibrary): upload, download, delete
+- CSV Import with dry-run, validation, duplicate detection, template download
+- Audit Logging (Spatie ActivityLog): all mutations, no PII
+- Web UI: Bootstrap 5, Alpine.js, DataTables
 
 ---
 
@@ -96,7 +53,7 @@ Duration: 0.39s
 ### Exit Gate Tests: 3/3 PASSED ✅
 
 ```
-✓ test_geo_fencing_rejects_out_of_bounds_punch (61 assertions total across 3 tests)
+✓ test_geo_fencing_rejects_out_of_bounds_punch
 ✓ test_biometric_mock_pushes_to_queue_and_processes
 ✓ test_ot_calculation_uses_config_values_and_shift_timings
 
@@ -106,58 +63,11 @@ Duration: 0.57s
 
 ### Implemented Features
 
-#### 1. Shift Management ✅
-- Shift CRUD (create, read, update, delete)
-- Night shift support (`is_night_shift` flag — handles midnight crossover)
-- Grace period per shift (`grace_period_minutes`)
-- Shift code for biometric device mapping
-- LocationScope enforced on Shift model
-- Blade views: shifts/index, shifts/form
-
-#### 2. Attendance Tracking ✅
-- Punch IN / OUT recording
-- Duplicate punch detection (same type within 5 minutes)
-- Hours worked calculation (handles night-shift crossover)
-- OT calculation from `config/statutory.php` (state-specific thresholds)
-- Late arrival / early departure detection
-- Status auto-set: present, absent, half_day, on_leave
-- LocationScope enforced on Attendance model
-- Blade view: attendance/index
-
-#### 3. Geo-Fencing (Haversine Formula) ✅
-- `GeoFencingService` with Haversine distance calculation
-- Configurable radius per location (`attendance_radius_meters`)
-- GPS-sourced punches validated against location boundary
-- Biometric punches bypass geo-fencing
-- Detailed rejection messages with distance info
-
-#### 4. Biometric Integration (Mock) ✅
-- `POST /api/v1/integrations/biometric/mock-punch` endpoint
-- Sanctum-authenticated (location_hr role required)
-- Dispatches `ProcessBiometricPunch` job to `biometric` Horizon queue
-- Job handles employee lookup by code, attendance creation
-- Returns 202 Accepted with job metadata
-
-#### 5. Laravel Horizon (Queue Management) ✅
-- Horizon installed and configured
-- `biometric` queue with dedicated worker
-- `ProcessBiometricPunch` job on biometric queue
-- Dashboard at `/horizon`
-
-#### 6. OT Calculation (Config-Driven) ✅
-- All OT thresholds from `config/statutory.php`
-- State-specific `ot_applicable_after_hours` per state
-- `AttendanceService::calculateOtHours()` public method
-- No hardcoded OT values anywhere in business logic
-- Supports all 9 states: MH, KA, DL, HR, UP, GJ, WB, JH, GA
-
-### Database Migrations Added (Phase 2)
-
-- `2026_07_20_071755_add_attendance_radius_to_locations_table.php` — `attendance_radius_meters` on locations
-- `2026_07_20_073324_add_state_code_to_locations_table.php` — `state_code` (ISO 3166-2) on locations
-- `2026_07_20_073553_add_code_to_locations_table.php` — `code` (short location code) on locations
-- `2026_07_20_XXXXXX_add_phase2_columns_to_shifts_table.php` — `is_night_shift`, `grace_period_minutes` on shifts
-- `2026_07_20_XXXXXX_add_phase2_columns_to_attendance_table.php` — 8 new columns on attendance
+- Shift CRUD with night shift support (midnight crossover), grace period, LocationScope
+- Attendance Tracking: punch IN/OUT, duplicate detection, hours worked, OT, late/early
+- Geo-Fencing (Haversine Formula): configurable radius per location, biometric bypass
+- Biometric Integration (Mock): `POST /api/v1/integrations/biometric/mock-punch`, Horizon queue
+- OT Calculation: 100% config-driven from `config/statutory.php`, all 9 states
 
 ---
 
@@ -174,127 +84,206 @@ Tests: 3 passed (47 assertions)
 Duration: 0.66s
 ```
 
-### Full Test Suite: 35/35 PASSED ✅
+### Implemented Features
+
+- 8 leave types: EL, CL, SL, ML, PL, BL, CO, UL — all config-driven per state
+- State-Specific Accrual Engine: monthly accrual, pro-rata for mid-year joiners
+- Year-end carry-forward capping with `carry_forward_limit` from config
+- Comp Off expiry: `expiry_date` on `leave_balances`, auto-zeroed monthly
+- Half-day leave: `is_half_day`, `half_day_session` (first_half/second_half)
+- Location-Specific Holiday Calendars: national + state-specific, LocationScope
+- Approval Workflow: pending → approved/rejected/cancelled; tentative balance management
+- 12-Month Balance Projection: in-memory simulation, Chart.js visualization
+- Scheduled Accrual: `AccrueLeavesJob` dispatched monthly on 1st at 00:05 IST
+- LocationScope enforced on LeaveApplication, LeaveBalance, HolidayCalendar
+
+---
+
+## Phase 4: Payroll & Statutory Compliance (COMPLETE ✅)
+
+### Exit Gate Tests: 9/9 PASSED ✅ (StatutoryEngine Unit Tests)
 
 ```
-Tests: 35 passed (174 assertions)
-Duration: 2.08s
+PASS  Tests\Unit\StatutoryEngineTest
+✓ it test_pf_calculation_respects_15k_ceiling_and_eps_split
+✓ it test_esi_calculation_applies_21k_ceiling_and_disabled_exemption
+✓ it test_pt_calculation_applies_correct_state_slab_and_haryana_nil
+✓ it test_tds_calculation_new_regime_applies_standard_deduction_and_slabs
+✓ it test_tds_calculation_old_regime_applies_investment_deductions
+✓ it test_gratuity_calculation_respects_20_lakh_ceiling
+✓ it test_bonus_calculation_respects_21k_eligibility_ceiling
+✓ it test_lwp_deduction_prorates_basic_and_allowances_correctly
+✓ it test_payroll_variance_report_flags_greater_than_5_percent_change
+
+Tests: 9 passed (95 assertions)
+Duration: 0.24s
+```
+
+### Full Test Suite: 44/44 PASSED ✅
+
+```
+Tests: 44 passed (269 assertions)
+Duration: 2.03s
 ```
 
 ### Implemented Features
 
-#### 1. Leave Types ✅
-- 8 leave types: EL (Earned Leave), CL (Casual Leave), SL (Sick Leave), ML (Maternity Leave),
-  PL (Paternity Leave), BL (Bereavement Leave), CO (Compensatory Off), UL (Unpaid Leave)
-- All types configured in `config/statutory.php` per state
-- LocationScope enforced on LeaveApplication and LeaveBalance models
+#### 1. Isolated StatutoryEngine (Pure PHP, No Eloquent) ✅
 
-#### 2. State-Specific Accrual Engine ✅
-- `App\Services\Leave\LeaveAccrualEngine` — all rules from `config/statutory.php`
-- Monthly accrual frequency with pro-rata calculation for mid-year joiners
-- Year-end carry-forward capping with configurable `carry_forward_limit` per leave type per state
-- Excess handling: `lapse` or `encash` (per config)
-- Comp Off expiry: `expiry_date` on `leave_balances`, auto-zeroed by `expireCompOffBalances()`
-- No hardcoded accrual values anywhere in business logic
+All calculator classes live in `app/Services/StatutoryEngine/` and accept DTOs/arrays, returning calculated values. Zero Eloquent dependencies inside the math logic — trivially unit-testable.
 
-#### 3. Location-Specific Holiday Calendars ✅
-- `HolidayCalendar` model with `type` (national/state) and LocationScope
-- `HolidayCalendarSeeder` seeds national + state-specific holidays for all 9 states (2026)
-- `LeaveService::countWorkingDays()` excludes weekends AND location holidays
-- Half-day leave returns `0.5` working days
+| Calculator | Responsibility |
+|---|---|
+| `PfCalculator` | PF wage ceiling (₹15,000), employee 12%, employer split (EPS 8.33% / EPF 3.67%), EDLI |
+| `EsiCalculator` | ESI wage ceiling (₹21,000; ₹25,000 for disabled), employee 0.75%, employer 3.25% |
+| `PtCalculator` | 9-state PT slabs from config; DL/HR = nil, MH = ₹200 max |
+| `TdsCalculator` | Old/new regime slabs, standard deduction, investment declarations, monthly projection |
+| `GratuityCalculator` | 15-day formula, ₹20 Lakh ceiling, 5-year eligibility threshold |
+| `BonusCalculator` | Bonus Act ₹21,000 eligibility ceiling, 8.33%–20% range from config |
+| `NetPayCalculator` | Orchestrates all calculators; LWP proration formula |
 
-#### 4. Approval Workflow ✅
-- State machine: `pending_approval` → `approved` / `rejected` / `cancelled`
-- Tentative balance deduction on application (pending bucket)
-- On approval: pending → availed
-- On rejection: pending → restored to available (closing_balance)
-- On cancellation: pending/availed → restored
-- Spatie ActivityLog records every approval/rejection with causer and comments
-- `LeaveApplicationPolicy` enforces LocationScope: Location HR can only act on their location
+#### 2. 100% Config-Driven Rules ✅
 
-#### 5. Balance Visibility & 12-Month Projection ✅
-- Real-time balance: Opening + Accrued − Availed = Closing (live from DB)
-- Pending bucket shows tentative deductions
-- `App\Services\Leave\LeaveProjectionService` — in-memory 12-month forward simulation
-- Projection accounts for future approved leaves and monthly accrual
-- Chart.js visualization on `/leave/balances`
-- JSON API endpoint: `GET /leave/balances/projection`
+All statutory ceilings and rates in `config/statutory.php` under the `payroll` key:
+- PF wage ceiling: ₹15,000 (with 8.33% EPS split)
+- ESI wage ceiling: ₹21,000 (₹25,000 for disabled)
+- PT slabs: All 9 states explicitly defined by ISO state code
+- Gratuity ceiling: ₹20 Lakh
+- Bonus Act ceiling: ₹21,000
+- Variance threshold: 5%
+- **Zero hardcoded numbers in any calculator class**
 
-#### 6. Half-Day Leave Support ✅
-- `is_half_day` boolean and `half_day_session` enum (`first_half`/`second_half`) on `leave_applications`
-- `countWorkingDays()` returns `0.5` for half-day
-- Form validation: half-day requires `from_date === to_date`
+#### 3. LWP Proration Formula ✅
 
-#### 7. Scheduled Accrual Job ✅
-- `App\Jobs\AccrueLeavesJob` — dispatched monthly on 1st at 00:05 IST
-- Registered in `routes/console.php` via Laravel Scheduler
-- `leave:accrue` Artisan command for manual/backfill runs
-- Comp Off expiry runs as part of the same monthly job
+```
+LWP Deduction = (Component Salary / Total Working Days) × LWP Days
+```
 
-### Database Migrations Added (Phase 3)
+Applied per component (Basic, HRA, Special Allowance) separately. Tested in `test_lwp_deduction_prorates_basic_and_allowances_correctly`.
 
-- `2026_07_20_141504_create_leave_balances_table.php` — `leave_balances` with composite index `(employee_id, leave_type, year)`
-- `2026_07_20_141505_add_phase3_columns_to_leave_applications_table.php` — half-day columns, rejection/cancellation tracking, composite indexes
+#### 4. PayrollInputDTO ✅
+
+```php
+// app/Services/StatutoryEngine/DTOs/PayrollInputDTO.php
+public string $employeeId
+public string $employeeCode
+public string $stateCode          // ISO 3166-2 (MH, KA, DL, HR, UP, GJ, WB, JH, GA)
+public float  $grossSalary
+public float  $basicSalary
+public float  $hra
+public float  $specialAllowance
+public int    $totalWorkingDays
+public float  $lwpDays
+public float  $otEarnings
+public float  $encashmentDays
+public float  $noticePayRecovery
+public bool   $optedForPf
+public bool   $isEsiEligible
+public int    $yearsOfService
+public string $taxRegime          // 'old' | 'new'
+public array  $investmentDeclarations
+public int    $payrollMonth
+public int    $payrollYear
+```
+
+#### 5. Payroll Variance Report ✅
+
+- `PayrollVarianceService::generateReport()` compares current vs previous month net pay
+- Any employee with >5% change is flagged (`variance_flag = true`)
+- Finalization is BLOCKED until all variance flags are acknowledged by HR
+- `acknowledgeVariance()` method records the acknowledging user ID and timestamp
+- Variance report view at `/payroll/reports/variance`
+
+#### 6. Phase 1 & Phase 3 Integration ✅
+
+- **LWP deductions**: `PayrollService` reads approved `UL` (Unpaid Leave) applications from Phase 3 `LeaveApplication` model
+- **Leave Encashment**: reads `encashment_days_this_month` from Phase 3 `LeaveBalance` model
+- **Notice Pay Recovery**: reads `notice_pay_recovery_amount` from Phase 1 `Employee` lifecycle data
+
+#### 7. Payslip Generation ✅
+
+- `PayslipPdfService` renders `payroll/payslip_pdf.blade.php` via DomPDF
+- Payslip shows: employee details, earnings breakdown, deductions breakdown, net pay, employer contributions
+- Download endpoint: `GET /payroll/{record}/pdf`
+- Screen view: `GET /payroll/{record}` → `payroll/payslip.blade.php`
+
+#### 8. Bank Transfer File (HDFC NEFT Format) ✅
+
+- `BankTransferFileService::generateHdfcCsv()` generates HDFC Salary Upload CSV
+- Format: Sr No | Beneficiary Name | Account Number | IFSC Code | Amount | Remarks
+- Only includes `finalized` payroll records
+
+#### 9. Statutory Challans ✅
+
+- `StatutoryChallanService::generatePfEcr()` — EPFO ECR format (tilde-delimited)
+- `StatutoryChallanService::generateEsiChallan()` — ESIC portal CSV format
+- `StatutoryChallanService::generatePtChallanSummary()` — PT summary grouped by state
+
+#### 10. Payroll Workflow ✅
+
+State machine: `draft` → `approved` → `finalized`
+
+1. HR clicks "Process Payroll" → creates `draft` records for all active employees
+2. Variance report generated automatically; flagged records require HR acknowledgment
+3. HR approves individual records (`draft` → `approved`)
+4. HR clicks "Finalize Payroll" (blocked if unacknowledged variances exist)
+5. All `approved` records → `finalized`; bank file and challans become downloadable
+
+#### 11. Parallel Run Reconciliation ✅
+
+- `legacy_net_pay` column on `payroll_records` for importing legacy system data
+- `reconciliation_variance` = NinjaOS net pay − legacy net pay
+- `reconciliation_cleared` flag for HR sign-off
+- Reconciliation view at `/payroll/reports/reconciliation`
+- Tolerance: ±₹1 (rounding differences acceptable)
+
+### Database Migrations Added (Phase 4)
+
+- `2026_07_19_185817_create_payroll_records_table.php` — Updated with full Phase 4 schema (variance, reconciliation, statutory breakdown columns)
+- `2026_07_20_154543_create_payroll_line_items_table.php` — Line items for payslip components
 
 ### Key Services
 
-- `App\Services\Leave\LeaveAccrualEngine` — config-driven accrual, carry-forward, Comp Off expiry
-- `App\Services\Leave\LeaveService` — apply, approve, reject, cancel; working days calculation
-- `App\Services\Leave\LeaveProjectionService` — 12-month forward balance projection
-
-### Key Jobs
-
-- `App\Jobs\AccrueLeavesJob` — Monthly leave accrual for all active locations (Scheduler: 1st of month)
-
-### Key Controllers
-
-- `App\Http\Controllers\LeaveApplicationController` — Apply, approve, reject, cancel
-- `App\Http\Controllers\LeaveBalanceController` — Balance view + projection API
-
-### Key Policies
-
-- `App\Policies\LeaveApplicationPolicy` — LocationScope enforcement for approve/reject/cancel
+- `app/Services/StatutoryEngine/DTOs/PayrollInputDTO.php` — Data transfer object
+- `app/Services/StatutoryEngine/PfCalculator.php` — PF + EPS + EDLI
+- `app/Services/StatutoryEngine/EsiCalculator.php` — ESI employee + employer
+- `app/Services/StatutoryEngine/PtCalculator.php` — 9-state PT slabs
+- `app/Services/StatutoryEngine/TdsCalculator.php` — Old/new regime TDS
+- `app/Services/StatutoryEngine/GratuityCalculator.php` — Gratuity with ceiling
+- `app/Services/StatutoryEngine/BonusCalculator.php` — Bonus Act
+- `app/Services/StatutoryEngine/NetPayCalculator.php` — Orchestrator
+- `app/Services/Payroll/PayrollService.php` — Full payroll run orchestration
+- `app/Services/Payroll/PayrollVarianceService.php` — Variance report + acknowledgment
+- `app/Services/Payroll/PayslipPdfService.php` — Payslip PDF generation
+- `app/Services/Payroll/BankTransferFileService.php` — HDFC NEFT CSV
+- `app/Services/Payroll/StatutoryChallanService.php` — PF ECR, ESI, PT challans
 
 ### Web Routes Added
 
 ```
-GET    /leave                           — Employee: list own applications
-GET    /leave/apply                     — Employee: application form
-POST   /leave                           — Employee: submit application
-PATCH  /leave/{id}/cancel               — Employee/HR: cancel
-GET    /leave/approvals                 — Manager/HR: pending approvals
-PATCH  /leave/{id}/approve              — Manager/HR: approve
-PATCH  /leave/{id}/reject               — Manager/HR: reject
-GET    /leave/balances                  — Employee: balance + projection view
-GET    /leave/balances/projection       — API: JSON projection for Chart.js
+GET    /payroll                                  — Payroll index (list records)
+POST   /payroll/process                          — Process payroll (create drafts)
+POST   /payroll/finalize                         — Finalize payroll (lock records)
+GET    /payroll/reports/variance                 — Variance report
+GET    /payroll/reports/reconciliation           — Parallel run reconciliation
+GET    /payroll/{record}                         — Payslip screen view
+GET    /payroll/{record}/pdf                     — Payslip PDF download
+POST   /payroll/{record}/approve                 — Approve a payroll record
+POST   /payroll/{record}/acknowledge-variance    — Acknowledge variance flag
 ```
-
-### Multi-Tenancy Verification
-
-- [x] LocationScope applied to LeaveApplication model
-- [x] LocationScope applied to LeaveBalance model
-- [x] LocationScope applied to HolidayCalendar model
-- [x] LeaveApplicationPolicy enforces location isolation for approve/reject/cancel
-- [x] Location HR can ONLY approve regularization for their own location
 
 ---
 
-## Database Schema
+## Full Test Suite Summary
 
-- [x] employees (with soft deletes, employee_code, lifecycle fields)
-- [x] employee_lifecycle_history (tracking status transitions)
-- [x] departments (with parent_id for hierarchy)
-- [x] designations
-- [x] locations (+ attendance_radius_meters, state_code, code)
-- [x] shifts (+ is_night_shift, grace_period_minutes)
-- [x] attendance (+ punch_source, device_id, ot_hours, is_late, is_early_departure, geo_lat, geo_lng, geo_distance_metres, shift_id)
-- [x] leave_applications (+ is_half_day, half_day_session, rejected_by, rejected_at, cancelled_at; composite indexes)
-- [x] leave_balances (opening_balance, accrued, availed, pending, closing_balance, expiry_date; composite index)
-- [x] holiday_calendars (national + state-specific, LocationScope)
-- [x] users
-- [x] activity_log (Spatie ActivityLog)
-- [x] roles, permissions (Spatie Permission)
-- [x] personal_access_tokens (Sanctum)
+| Phase | Tests | Assertions | Status |
+|---|---|---|---|
+| Phase 1 (Feature) | 4 | 11 | ✅ |
+| Phase 2 (Feature) | 3 | 61 | ✅ |
+| Phase 3 (Feature) | 3 | 47 | ✅ |
+| Phase 4 (Unit — StatutoryEngine) | 9 | 95 | ✅ |
+| Architecture Tests | 25 | 55 | ✅ |
+| **Total** | **44** | **269** | **✅** |
 
 ---
 
@@ -315,40 +304,34 @@ php artisan test tests/Feature/Phase2AttendanceTest.php --no-coverage
 
 # Phase 3 tests
 php artisan test tests/Feature/Phase3LeaveTest.php --no-coverage
+
+# Phase 4 StatutoryEngine unit tests
+php artisan test tests/Unit/StatutoryEngineTest.php --no-coverage
 ```
 
-### Phase 3 Exit Gate Verification Commands
+### Phase 4 Exit Gate Verification Commands
 ```bash
-# Run all 3 Phase 3 mandatory tests
-php artisan test tests/Feature/Phase3LeaveTest.php --no-coverage
+# Run all 9 Phase 4 mandatory StatutoryEngine unit tests
+php artisan test tests/Unit/StatutoryEngineTest.php --no-coverage
 
-# Run specific Phase 3 tests
-php artisan test tests/Feature/Phase3LeaveTest.php --filter="test_state_specific_accrual_calculates_correctly_for_mid_year_joiner" --no-coverage
-php artisan test tests/Feature/Phase3LeaveTest.php --filter="test_holiday_calendar_excludes_state_specific_holidays_from_working_days" --no-coverage
-php artisan test tests/Feature/Phase3LeaveTest.php --filter="test_leave_approval_workflow_updates_balance_and_creates_audit_log" --no-coverage
+# Run individual Phase 4 tests
+php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_pf_calculation_respects_15k_ceiling_and_eps_split" --no-coverage
+php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_pt_calculation_applies_correct_state_slab_and_haryana_nil" --no-coverage
+php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_payroll_variance_report_flags_greater_than_5_percent_change" --no-coverage
+php artisan test tests/Unit/StatutoryEngineTest.php --filter="test_lwp_deduction_prorates_basic_and_allowances_correctly" --no-coverage
 ```
 
 ### Leave Accrual Commands
 ```bash
-# Run monthly accrual for all locations (dispatches job)
 php artisan leave:accrue
-
-# Run for specific location
 php artisan leave:accrue --location=1
-
-# Run for specific month/year (backfill)
 php artisan leave:accrue --year=2026 --month=7
 ```
 
 ### Database Seeding
 ```bash
-# Seed roles, permissions, and locations
 php artisan db:seed
-
-# Seed holiday calendars
 php artisan db:seed --class=HolidayCalendarSeeder
-
-# Seed with fresh database
 php artisan migrate:fresh --seed
 ```
 
@@ -356,90 +339,47 @@ php artisan migrate:fresh --seed
 
 ## Key Files
 
-### Core Implementation
-- `/app/Models/Employee.php` — Employee model with MediaLibrary, ActivityLog, SoftDeletes, LocationScope
-- `/app/Models/Attendance.php` — Attendance model with LocationScope, SoftDeletes
-- `/app/Models/Shift.php` — Shift model with LocationScope, SoftDeletes
-- `/app/Models/LeaveApplication.php` — Leave application with state machine, half-day, LocationScope
-- `/app/Models/LeaveBalance.php` — Leave balance with balance helpers, expiry_date, LocationScope
-- `/app/Models/HolidayCalendar.php` — Holiday calendar with LocationScope
-- `/app/Models/Location.php` — Location model (code, state_code, attendance_radius_meters)
-- `/app/Services/Attendance/AttendanceService.php` — Core attendance logic
-- `/app/Services/Attendance/GeoFencingService.php` — Haversine geo-fencing
-- `/app/Services/Leave/LeaveAccrualEngine.php` — Config-driven accrual, carry-forward, Comp Off expiry
-- `/app/Services/Leave/LeaveService.php` — Apply, approve, reject, cancel; working days calculation
-- `/app/Services/Leave/LeaveProjectionService.php` — 12-month forward balance projection
-- `/app/Jobs/ProcessBiometricPunch.php` — Biometric queue job
-- `/app/Jobs/AccrueLeavesJob.php` — Monthly leave accrual job
+### StatutoryEngine (Phase 4)
+- `app/Services/StatutoryEngine/DTOs/PayrollInputDTO.php`
+- `app/Services/StatutoryEngine/PfCalculator.php`
+- `app/Services/StatutoryEngine/EsiCalculator.php`
+- `app/Services/StatutoryEngine/PtCalculator.php`
+- `app/Services/StatutoryEngine/TdsCalculator.php`
+- `app/Services/StatutoryEngine/GratuityCalculator.php`
+- `app/Services/StatutoryEngine/BonusCalculator.php`
+- `app/Services/StatutoryEngine/NetPayCalculator.php`
+- `app/Services/Payroll/PayrollService.php`
+- `app/Services/Payroll/PayrollVarianceService.php`
+- `app/Services/Payroll/PayslipPdfService.php`
+- `app/Services/Payroll/BankTransferFileService.php`
+- `app/Services/Payroll/StatutoryChallanService.php`
+- `app/Http/Controllers/PayrollController.php`
+- `app/Policies/PayrollPolicy.php`
+- `tests/Unit/StatutoryEngineTest.php`
 
-### Controllers
-- `/app/Http/Controllers/AttendanceController.php` — Attendance CRUD
-- `/app/Http/Controllers/ShiftController.php` — Shift CRUD
-- `/app/Http/Controllers/Api/BiometricMockController.php` — Mock biometric endpoint
-- `/app/Http/Controllers/LeaveApplicationController.php` — Leave apply/approve/reject/cancel
-- `/app/Http/Controllers/LeaveBalanceController.php` — Balance view + projection API
+### Leave Management (Phase 3)
+- `app/Services/Leave/LeaveAccrualEngine.php`
+- `app/Services/Leave/LeaveService.php`
+- `app/Services/Leave/LeaveProjectionService.php`
+- `app/Jobs/AccrueLeavesJob.php`
+- `app/Http/Controllers/LeaveApplicationController.php`
+- `app/Http/Controllers/LeaveBalanceController.php`
+- `app/Policies/LeaveApplicationPolicy.php`
 
-### Policies
-- `/app/Policies/LeaveApplicationPolicy.php` — LocationScope enforcement
+### Attendance & Shifts (Phase 2)
+- `app/Services/Attendance/AttendanceService.php`
+- `app/Services/Attendance/GeoFencingService.php`
+- `app/Jobs/ProcessBiometricPunch.php`
+- `app/Http/Controllers/AttendanceController.php`
+- `app/Http/Controllers/ShiftController.php`
 
-### Views
-- `/resources/views/attendance/index.blade.php` — Attendance list
-- `/resources/views/shifts/index.blade.php` — Shift list
-- `/resources/views/shifts/form.blade.php` — Create/edit shift
-- `/resources/views/leave/index.blade.php` — Employee leave applications
-- `/resources/views/leave/form.blade.php` — Apply for leave (with half-day support)
-- `/resources/views/leave/approvals.blade.php` — Manager/HR approval dashboard
-- `/resources/views/leave/balances.blade.php` — Balance view + 12-month Chart.js projection
-
-### Tests
-- `/tests/Feature/Phase1ExitGateTest.php` — 4 Phase 1 exit gate tests
-- `/tests/Feature/Phase2AttendanceTest.php` — 3 Phase 2 exit gate tests
-- `/tests/Feature/Phase3LeaveTest.php` — 3 Phase 3 exit gate tests
+### Core HR (Phase 1)
+- `app/Models/Employee.php`
+- `app/Observers/EmployeeObserver.php`
+- `app/Services/EmployeeImportService.php`
+- `app/Http/Controllers/EmployeeController.php`
+- `app/Http/Controllers/EmployeeLifecycleController.php`
 
 ### Configuration
-- `/config/statutory.php` — All statutory values for 9 states (OT config + leave accrual rules)
-- `/config/horizon.php` — Horizon queue configuration
-- `/bootstrap/app.php` — Middleware registration
-- `/routes/console.php` — Laravel Scheduler (monthly leave accrual)
-
-### Seeders
-- `/database/seeders/HolidayCalendarSeeder.php` — National + state-specific holidays for all 9 states (2026)
-
----
-
-## Known Limitations & Future Improvements
-
-1. **Shift Assignment**: Employees are not yet assigned to specific shifts; shift lookup is by location
-2. **Attendance Reports**: No attendance summary/analytics views yet
-3. **Leave-Attendance Integration**: Attendance status does not yet auto-update from approved leave
-4. **Biometric Device Auth**: Mock endpoint uses Sanctum; real integration would use device-specific API keys
-5. **Horizon Supervisor**: Production Horizon supervisor config needs tuning for load
-6. **Leave Encashment Processing**: Encashment flagging at year-end is implemented; actual payroll debit handled in Phase 4
-
----
-
-## Next Phase: Phase 4 - Payroll & Statutory Compliance
-
-### Planned Features
-1. Payroll computation (gross, deductions, net pay)
-2. PF / ESI / PT calculations from config/statutory.php
-3. Leave balance integration (unpaid leave deductions, encashment payouts)
-4. Salary slip generation (PDF)
-5. Payroll approval workflow
-6. Statutory filing reports (Form 16, PF challan, ESI challan)
-
----
-
-## Deployment Notes
-
-- All migrations are reversible
-- Soft deletes preserve data for audit trail
-- ActivityLog is immutable (append-only)
-- Statutory config is environment-specific
-- No hardcoded values in business logic
-- UUIDs for public-facing identifiers
-- LocationScope enforced at application layer
-
----
-
-**Status:** Phase 3 Complete ✅ - Ready for Phase 4 (Payroll & Statutory Compliance)
+- `config/statutory.php` — All statutory rules: OT, PF, ESI, PT, TDS, Gratuity, Bonus, Leave
+- `config/nexusos.php` — Application-level config

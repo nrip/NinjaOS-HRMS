@@ -184,6 +184,205 @@ return [
     ],
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Payroll — Consolidated payroll ceilings, rates, and PT slabs keyed by
+    // ISO 3166-2 state code (matching Location->state_code / PayrollInputDTO->stateCode)
+    // ─────────────────────────────────────────────────────────────────────────
+    'payroll' => [
+
+        // ── Provident Fund (PF) ───────────────────────────────────────────────
+        'pf' => [
+            'wage_ceiling'              => 15000,   // Monthly wage ceiling for PF calculation
+            'employee_rate'             => 0.12,    // 12% of PF wage
+            'employer_pf_rate'          => 0.0367,  // 3.67% employer PF (EPF)
+            'employer_eps_rate'         => 0.0833,  // 8.33% employer EPS
+            'admin_charges_rate'        => 0.005,   // 0.5% admin charges on PF wage
+            'edli_rate'                 => 0.005,   // 0.5% EDLI contribution
+            'effective_from'            => '2024-01-01',
+        ],
+
+        // ── Employee State Insurance (ESI) ────────────────────────────────────
+        'esi' => [
+            'wage_ceiling_standard'     => 21000,   // Normal wage ceiling
+            'wage_ceiling_disabled'     => 25000,   // Wage ceiling for persons with disabilities
+            'employee_rate'             => 0.0075,  // 0.75% of gross
+            'employer_rate'             => 0.0325,  // 3.25% of gross
+            'effective_from'            => '2024-01-01',
+        ],
+
+        // ── Gratuity ──────────────────────────────────────────────────────────
+        'gratuity' => [
+            'ceiling'                   => 2000000, // ₹20 Lakh ceiling (Payment of Gratuity Act, 1972)
+            'days_divisor'              => 26,      // Monthly salary / 26 = daily rate
+            'years_multiplier'          => 15,      // 15 days per completed year
+            'minimum_service_years'     => 5,       // Minimum 5 years for eligibility
+            'effective_from'            => '2024-01-01',
+        ],
+
+        // ── Bonus ─────────────────────────────────────────────────────────────
+        'bonus' => [
+            'wage_ceiling'              => 21000,   // Eligible if gross <= 21,000 (Bonus Act, 1965)
+            'calculation_ceiling'       => 7000,    // Bonus calculated on min(basic, 7000)
+            'min_rate'                  => 0.0833,  // 8.33% minimum bonus
+            'max_rate'                  => 0.20,    // 20% maximum bonus
+            'minimum_service_days'      => 30,      // Minimum 30 days worked in the year
+            'effective_from'            => '2024-01-01',
+        ],
+
+        // ── TDS — Income Tax Act, 1961 ────────────────────────────────────────
+        'tds' => [
+            'standard_deduction'        => 50000,   // Standard deduction for salaried employees
+            'section_80c_limit'         => 150000,  // 80C: PF, LIC, ELSS, etc.
+            'section_80d_limit'         => 25000,   // 80D: Medical insurance
+            'hra_exemption_rate_metro'  => 0.50,    // 50% of basic for metro cities
+            'hra_exemption_rate_non_metro' => 0.40, // 40% of basic for non-metro
+            'lta_exemption_limit'       => 10000,   // LTA exemption per year
+            'cess_rate'                 => 0.04,    // 4% health and education cess
+            'old_regime' => [
+                'slabs' => [
+                    ['min' => 0,       'max' => 250000,      'rate' => 0.00],
+                    ['min' => 250001,  'max' => 500000,      'rate' => 0.05],
+                    ['min' => 500001,  'max' => 1000000,     'rate' => 0.20],
+                    ['min' => 1000001, 'max' => PHP_INT_MAX, 'rate' => 0.30],
+                ],
+                'surcharge_slabs' => [
+                    ['min' => 0,        'max' => 5000000,     'rate' => 0.00],
+                    ['min' => 5000001,  'max' => 10000000,    'rate' => 0.10],
+                    ['min' => 10000001, 'max' => PHP_INT_MAX, 'rate' => 0.15],
+                ],
+                'rebate_87a_limit'  => 500000,  // Rebate u/s 87A if taxable income <= 5L
+                'rebate_87a_amount' => 12500,   // Max rebate ₹12,500
+            ],
+            'new_regime' => [
+                'slabs' => [
+                    ['min' => 0,       'max' => 300000,      'rate' => 0.00],
+                    ['min' => 300001,  'max' => 600000,      'rate' => 0.05],
+                    ['min' => 600001,  'max' => 900000,      'rate' => 0.10],
+                    ['min' => 900001,  'max' => 1200000,     'rate' => 0.15],
+                    ['min' => 1200001, 'max' => 1500000,     'rate' => 0.20],
+                    ['min' => 1500001, 'max' => PHP_INT_MAX, 'rate' => 0.30],
+                ],
+                'surcharge_slabs' => [
+                    ['min' => 0,        'max' => 5000000,     'rate' => 0.00],
+                    ['min' => 5000001,  'max' => 10000000,    'rate' => 0.10],
+                    ['min' => 10000001, 'max' => PHP_INT_MAX, 'rate' => 0.15],
+                ],
+                'rebate_87a_limit'  => 700000,  // Rebate u/s 87A if taxable income <= 7L (new regime)
+                'rebate_87a_amount' => 25000,   // Max rebate ₹25,000
+            ],
+            'effective_from' => '2024-04-01',
+        ],
+
+        // ── Professional Tax (PT) — keyed by ISO 3166-2 state code ───────────
+        //
+        // is_applicable: false = state does not levy PT (DL, HR)
+        // slabs: array of ['min', 'max', 'amount'] — monthly gross salary ranges
+        // feb_amount: Maharashtra levies ₹300 in February; other months ₹200
+        // ─────────────────────────────────────────────────────────────────────
+        'pt_slabs' => [
+
+            'MH' => [
+                'is_applicable' => true,
+                'state_name'    => 'Maharashtra',
+                'slabs' => [
+                    ['min' => 0,     'max' => 7500,        'amount' => 0,   'feb_amount' => 0],
+                    ['min' => 7501,  'max' => 10000,       'amount' => 175, 'feb_amount' => 175],
+                    ['min' => 10001, 'max' => PHP_INT_MAX, 'amount' => 200, 'feb_amount' => 300],
+                ],
+            ],
+
+            'KA' => [
+                'is_applicable' => true,
+                'state_name'    => 'Karnataka',
+                'slabs' => [
+                    ['min' => 0,     'max' => 14999,       'amount' => 0],
+                    ['min' => 15000, 'max' => 24999,       'amount' => 150],
+                    ['min' => 25000, 'max' => PHP_INT_MAX, 'amount' => 200],
+                ],
+            ],
+
+            'DL' => [
+                'is_applicable' => false, // Delhi does NOT levy Professional Tax
+                'state_name'    => 'Delhi',
+                'slabs'         => [],
+            ],
+
+            'HR' => [
+                'is_applicable' => false, // Haryana does NOT levy Professional Tax
+                'state_name'    => 'Haryana',
+                'slabs'         => [],
+            ],
+
+            'UP' => [
+                'is_applicable' => true,
+                'state_name'    => 'Uttar Pradesh',
+                'slabs' => [
+                    ['min' => 0,     'max' => 12000,       'amount' => 0],
+                    ['min' => 12001, 'max' => PHP_INT_MAX, 'amount' => 200],
+                ],
+            ],
+
+            'GJ' => [
+                'is_applicable' => true,
+                'state_name'    => 'Gujarat',
+                'slabs' => [
+                    ['min' => 0,     'max' => 5999,        'amount' => 0],
+                    ['min' => 6000,  'max' => 8999,        'amount' => 80],
+                    ['min' => 9000,  'max' => 11999,       'amount' => 150],
+                    ['min' => 12000, 'max' => PHP_INT_MAX, 'amount' => 200],
+                ],
+            ],
+
+            'WB' => [
+                'is_applicable' => true,
+                'state_name'    => 'West Bengal',
+                'slabs' => [
+                    ['min' => 0,     'max' => 10000,       'amount' => 0],
+                    ['min' => 10001, 'max' => 15000,       'amount' => 110],
+                    ['min' => 15001, 'max' => 25000,       'amount' => 130],
+                    ['min' => 25001, 'max' => 40000,       'amount' => 150],
+                    ['min' => 40001, 'max' => PHP_INT_MAX, 'amount' => 200],
+                ],
+            ],
+
+            'JH' => [
+                'is_applicable' => true,
+                'state_name'    => 'Jharkhand',
+                'slabs' => [
+                    ['min' => 0,     'max' => 25000,       'amount' => 0],
+                    ['min' => 25001, 'max' => PHP_INT_MAX, 'amount' => 100],
+                ],
+            ],
+
+            'GA' => [
+                'is_applicable' => true,
+                'state_name'    => 'Goa',
+                'slabs' => [
+                    ['min' => 0,     'max' => 15000,       'amount' => 0],
+                    ['min' => 15001, 'max' => 25000,       'amount' => 150],
+                    ['min' => 25001, 'max' => PHP_INT_MAX, 'amount' => 200],
+                ],
+            ],
+
+        ], // end pt_slabs
+
+        // ── Payroll Variance Report ───────────────────────────────────────────
+        'variance' => [
+            'flag_threshold_percent'    => 5.0,    // Flag if net pay changes by > 5%
+            'parallel_run_tolerance_inr'=> 1.0,    // Parallel run: zero tolerance above ₹1
+        ],
+
+        // ── LWP Proration ─────────────────────────────────────────────────────
+        //
+        // Formula: (Component / total_working_days) * lwp_days
+        // Standard working days per month used as denominator for proration.
+        // ─────────────────────────────────────────────────────────────────────
+        'lwp' => [
+            'standard_working_days' => 26, // Standard denominator for LWP proration
+        ],
+
+    ], // end payroll
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Overtime (OT) — Shops & Establishments Acts (state-specific)
     // Keys are 2-letter ISO state codes matching Location->state_code.
     // ─────────────────────────────────────────────────────────────────────────
