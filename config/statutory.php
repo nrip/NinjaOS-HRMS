@@ -190,73 +190,94 @@ return [
         'effective_from' => '2024-01-01',
     ],
 
-    /**
+    /*
      * Overtime (OT) Configuration
-     * State-specific rules based on Shops and Establishments Acts
+     * Keys are 2-letter ISO state codes matching Location->state_code and employee_code prefix.
+     * All OT rules are read from here — NEVER hardcode multipliers in business logic.
+     *
+     * Statutory references:
+     *   MH: Maharashtra Shops & Establishments Act — OT after 9 hrs, 2x rate
+     *   DL: Delhi Shops & Establishments Act — OT after 8 hrs, 2x rate
+     *   HR: Haryana Shops & Establishments Act — OT after 8 hrs, 2x rate
+     *   KA: Karnataka Shops & Establishments Act — OT after 9 hrs, 2x rate
+     *   UP: UP Shops & Establishments Act — OT after 8 hrs, 2x rate
+     *   GJ: Gujarat Shops & Establishments Act — OT after 8 hrs, 2x rate
+     *   WB: West Bengal Shops & Establishments Act — OT after 8 hrs, 2x rate
+     *   JH: Jharkhand Shops & Establishments Act — OT after 8 hrs, 2x rate
+     *   GA: Goa Shops & Establishments Act — OT after 8 hrs, 2x rate
      */
     'overtime' => [
-        'delhi' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,  // 2x the hourly rate
-            'ot_applicable_after_hours' => 8,  // OT after 8 hours per day
-            'effective_from' => '2024-01-01',
-        ],
-        'haryana' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
+        'DL' => [
+            'state_name'              => 'Delhi',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
             'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+            'ot_rate_multiplier'      => 2.0,   // 2x hourly rate — read from here, never hardcode
+            'effective_from'          => '2024-01-01',
         ],
-        'maharashtra' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
-            'ot_applicable_after_hours' => 9,  // OT after 9 hours per day in Maharashtra
-            'effective_from' => '2024-01-01',
-        ],
-        'karnataka' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
+        'HR' => [
+            'state_name'              => 'Haryana',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
             'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
         ],
-        'uttar_pradesh' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
-            'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+        'MH' => [
+            'state_name'              => 'Maharashtra',
+            'daily_working_hours'     => 9,     // Standard day is 9 hrs in MH
+            'weekly_working_hours'    => 48,
+            'ot_applicable_after_hours' => 9,   // OT kicks in after 9 hrs in MH
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
         ],
-        'gujarat' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
-            'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+        'KA' => [
+            'state_name'              => 'Karnataka',
+            'daily_working_hours'     => 9,
+            'weekly_working_hours'    => 48,
+            'ot_applicable_after_hours' => 9,
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
         ],
-        'west_bengal' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
+        'UP' => [
+            'state_name'              => 'Uttar Pradesh',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
             'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
         ],
-        'jharkhand' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
+        'GJ' => [
+            'state_name'              => 'Gujarat',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
             'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
         ],
-        'goa' => [
-            'daily_working_hours' => 8,
-            'weekly_working_hours' => 48,
-            'ot_rate_multiplier' => 2,
+        'WB' => [
+            'state_name'              => 'West Bengal',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
             'ot_applicable_after_hours' => 8,
-            'effective_from' => '2024-01-01',
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
+        ],
+        'JH' => [
+            'state_name'              => 'Jharkhand',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
+            'ot_applicable_after_hours' => 8,
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
+        ],
+        'GA' => [
+            'state_name'              => 'Goa',
+            'daily_working_hours'     => 8,
+            'weekly_working_hours'    => 48,
+            'ot_applicable_after_hours' => 8,
+            'ot_rate_multiplier'      => 2.0,
+            'effective_from'          => '2024-01-01',
         ],
     ],
 

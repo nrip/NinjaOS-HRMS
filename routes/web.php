@@ -31,3 +31,15 @@ Route::post('/auth/logout', [AuthController::class, 'logout'])->name('auth.logou
 Route::get('/auth/login', function () {
     return response()->json(['message' => 'Please login via API.'], 401);
 })->name('auth.login');
+
+// Attendance routes
+Route::middleware('auth')->group(function () {
+    Route::resource('attendance', \App\Http\Controllers\AttendanceController::class)->except(['create', 'store', 'edit', 'update', 'destroy']);
+    Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'webIndex'])->name('attendance.index');
+    Route::post('/attendance/{attendance}/regularize', [\App\Http\Controllers\AttendanceController::class, 'requestRegularizationWeb'])->name('attendance.regularize');
+    Route::post('/attendance/{attendance}/approve-regularization', [\App\Http\Controllers\AttendanceController::class, 'approveRegularizationWeb'])->name('attendance.approve-regularization');
+    Route::post('/attendance/{attendance}/reject-regularization', [\App\Http\Controllers\AttendanceController::class, 'rejectRegularizationWeb'])->name('attendance.reject-regularization');
+
+    // Shift routes
+    Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
+});

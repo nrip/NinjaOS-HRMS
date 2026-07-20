@@ -24,8 +24,8 @@ class Shift extends Model
     ];
 
     protected $casts = [
-        'start_time' => 'time',
-        'end_time' => 'time',
+        'start_time' => 'string',
+        'end_time' => 'string',
         'is_active' => 'boolean',
         'working_days' => 'json',
     ];

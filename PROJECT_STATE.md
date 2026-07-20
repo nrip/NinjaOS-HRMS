@@ -1,10 +1,10 @@
 # NexusOS Project State
 
-**Current Phase:** Phase 1 - Core HR (COMPLETE ✅)
+**Current Phase:** Phase 2 - Attendance & Shift Management (COMPLETE ✅)
 
-**Last Updated:** 2026-07-20 03:30 GMT+5:30
+**Last Updated:** 2026-07-20 07:40 GMT+5:30
 
-**Status:** Phase 1 Complete - Ready for Phase 2
+**Status:** Phase 2 Complete - Ready for Phase 3
 
 ---
 
@@ -89,48 +89,153 @@ Duration: 0.39s
 - jQuery 3.7
 - Vite asset bundling
 
-### Database Schema
+---
+
+## Phase 2: Attendance & Shift Management (COMPLETE ✅)
+
+### Exit Gate Tests: 3/3 PASSED ✅
+
+```
+✓ test_geo_fencing_rejects_out_of_bounds_punch (61 assertions total across 3 tests)
+✓ test_biometric_mock_pushes_to_queue_and_processes
+✓ test_ot_calculation_uses_config_values_and_shift_timings
+
+Tests: 3 passed (61 assertions)
+Duration: 0.57s
+```
+
+### Full Test Suite: 32/32 PASSED ✅
+
+```
+Tests: 32 passed (127 assertions)
+Duration: 1.70s
+```
+
+### Implemented Features
+
+#### 1. Shift Management ✅
+- Shift CRUD (create, read, update, delete)
+- Night shift support (`is_night_shift` flag — handles midnight crossover)
+- Grace period per shift (`grace_period_minutes`)
+- Shift code for biometric device mapping
+- LocationScope enforced on Shift model
+- Blade views: shifts/index, shifts/form
+
+#### 2. Attendance Tracking ✅
+- Punch IN / OUT recording
+- Duplicate punch detection (same type within 5 minutes)
+- Hours worked calculation (handles night-shift crossover)
+- OT calculation from `config/statutory.php` (state-specific thresholds)
+- Late arrival / early departure detection
+- Status auto-set: present, absent, half_day, on_leave
+- LocationScope enforced on Attendance model
+- Blade view: attendance/index
+
+#### 3. Geo-Fencing (Haversine Formula) ✅
+- `GeoFencingService` with Haversine distance calculation
+- Configurable radius per location (`attendance_radius_meters`)
+- GPS-sourced punches validated against location boundary
+- Biometric punches bypass geo-fencing
+- Detailed rejection messages with distance info
+
+#### 4. Biometric Integration (Mock) ✅
+- `POST /api/v1/integrations/biometric/mock-punch` endpoint
+- Sanctum-authenticated (location_hr role required)
+- Dispatches `ProcessBiometricPunch` job to `biometric` Horizon queue
+- Job handles employee lookup by code, attendance creation
+- Returns 202 Accepted with job metadata
+
+#### 5. Laravel Horizon (Queue Management) ✅
+- Horizon installed and configured
+- `biometric` queue with dedicated worker
+- `ProcessBiometricPunch` job on biometric queue
+- Dashboard at `/horizon`
+
+#### 6. OT Calculation (Config-Driven) ✅
+- All OT thresholds from `config/statutory.php`
+- State-specific `ot_applicable_after_hours` per state
+- `AttendanceService::calculateOtHours()` public method
+- No hardcoded OT values anywhere in business logic
+- Supports all 9 states: MH, KA, DL, HR, UP, GJ, WB, JH, GA
+
+### Database Migrations Added (Phase 2)
+
+- `2026_07_20_071755_add_attendance_radius_to_locations_table.php` — `attendance_radius_meters` on locations
+- `2026_07_20_073324_add_state_code_to_locations_table.php` — `state_code` (ISO 3166-2) on locations
+- `2026_07_20_073553_add_code_to_locations_table.php` — `code` (short location code) on locations
+- `2026_07_20_XXXXXX_add_phase2_columns_to_shifts_table.php` — `is_night_shift`, `grace_period_minutes` on shifts
+- `2026_07_20_XXXXXX_add_phase2_columns_to_attendance_table.php` — 8 new columns on attendance
+
+### Key Services
+
+- `App\Services\Attendance\AttendanceService` — processPunch, calculateOtHours, duplicate detection
+- `App\Services\Attendance\GeoFencingService` — Haversine geo-fencing with configurable radius
+
+### Key Jobs
+
+- `App\Jobs\ProcessBiometricPunch` — Queue job for biometric punch processing (Horizon: biometric queue)
+
+### Key Controllers
+
+- `App\Http\Controllers\AttendanceController` — Attendance CRUD + punch recording
+- `App\Http\Controllers\ShiftController` — Shift CRUD
+- `App\Http\Controllers\Api\BiometricMockController` — Mock biometric endpoint
+
+### Multi-Tenancy Verification
+
+- [x] LocationScope applied to Attendance model
+- [x] LocationScope applied to Shift model
+- [x] AttendancePolicy enforces location isolation
+- [x] ShiftPolicy enforces location isolation
+
+---
+
+## Database Schema
 
 - [x] employees (with soft deletes, employee_code, lifecycle fields)
 - [x] employee_lifecycle_history (tracking status transitions)
 - [x] departments (with parent_id for hierarchy)
 - [x] designations
-- [x] locations
+- [x] locations (+ attendance_radius_meters, state_code, code)
+- [x] shifts (+ is_night_shift, grace_period_minutes)
+- [x] attendance (+ punch_source, device_id, ot_hours, is_late, is_early_departure, geo_lat, geo_lng, geo_distance_metres, shift_id)
 - [x] users
 - [x] activity_log (Spatie ActivityLog)
 - [x] roles, permissions (Spatie Permission)
 - [x] personal_access_tokens (Sanctum)
 
-### Multi-Tenancy Verification
-
-- [x] LocationScope applied to all 8 tenant-scoped models
-- [x] TenantContext singleton properly registered
-- [x] EnforceLocationScope middleware wired in bootstrap/app.php
-- [x] Architecture test ensures LocationScope on all tenant-scoped models
-
-### Security
-
-- [x] UUIDs for public-facing identifiers
-- [x] Soft deletes for audit trail
-- [x] No PII in logs
-- [x] Role-based access control
-- [x] Location-scoped queries
-- [x] Parameterized queries via Eloquent ORM
-
 ---
 
 ## Manual Testing Commands
 
-### Run Pest Tests
+### Run All Tests
 ```bash
-# Run all Phase 1 Exit Gate tests
-php artisan test tests/Feature/Phase1ExitGateTest.php
+cd /home/ubuntu/nexusos && php artisan test --no-coverage
+```
 
-# Run with verbose output
-php artisan test tests/Feature/Phase1ExitGateTest.php --verbose
+### Run Phase-Specific Tests
+```bash
+# Phase 1 tests
+php artisan test tests/Feature/Phase1ExitGateTest.php --no-coverage
 
-# Run with coverage
-php artisan test tests/Feature/Phase1ExitGateTest.php --coverage
+# Phase 2 tests
+php artisan test tests/Feature/Phase2AttendanceTest.php --no-coverage
+```
+
+### Biometric Mock API
+```bash
+# POST a mock punch (requires Sanctum token)
+curl -X POST http://localhost:8000/api/v1/integrations/biometric/mock-punch \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employee_code": "EMP-MH-00001",
+    "punch_type": "IN",
+    "timestamp": "2026-07-20T09:15:00+05:30",
+    "latitude": 18.5913,
+    "longitude": 73.7389,
+    "device_id": "ZK-MOCK-01"
+  }'
 ```
 
 ### Database Seeding
@@ -142,122 +247,58 @@ php artisan db:seed
 php artisan migrate:fresh --seed
 ```
 
-### Tinker Commands (Interactive Testing)
-```bash
-php artisan tinker
-
-# Create a test employee
-$emp = \App\Models\Employee::factory()->create(['first_name' => 'Test', 'email' => 'test@test.com']);
-
-# Verify employee_code
-echo $emp->employee_code; // EMP-MA-00001
-
-# Test LocationScope
-app(\App\Services\TenantContext::class)->setLocationId($emp->location_id);
-\App\Models\Employee::count(); // Should return 1
-
-# View audit log
-\App\Models\Employee::first()->activities;
-```
-
-### Manual Web UI Testing
-```bash
-# Start development server
-php artisan serve
-
-# Access the application
-http://localhost:8000
-
-# Login with seeded credentials
-Email: admin@nexusos.local
-Password: password
-
-# Navigate to Employees
-/employees
-
-# Create a new employee
-/employees/create
-
-# View employee details
-/employees/{id}
-
-# Upload documents
-/employees/{id} → Upload Document
-
-# Import employees
-/employees/import
-
-# Download CSV template
-/employees/import/template
-```
-
-### CSV Import Testing
-1. Download template: `/employees/import/template`
-2. Fill in sample data:
-   ```csv
-   first_name,last_name,email,phone,date_of_birth,gender,department_code,designation_code,date_of_joining
-   John,Doe,john@test.com,9876543210,1990-01-01,male,HR,MGR,2026-08-01
-   Jane,Smith,jane@test.com,9876543211,1992-02-02,female,HR,MGR,2026-08-02
-   ```
-3. Upload and test:
-   - Dry-run mode (preview without saving)
-   - Full import (persist to database)
-   - Error handling (duplicate emails, invalid data)
-
 ---
 
 ## Key Files
 
 ### Core Implementation
-- `/app/Models/Employee.php` - Employee model with MediaLibrary, ActivityLog, SoftDeletes, LocationScope
-- `/app/Models/EmployeeLifecycleHistory.php` - Lifecycle history tracking
-- `/app/Services/TenantContext.php` - Singleton for multi-tenancy context
-- `/app/Models/Scopes/LocationScope.php` - Global scope for location filtering
-- `/app/Http/Middleware/EnforceLocationScope.php` - Middleware to set location context
-- `/app/Observers/EmployeeObserver.php` - Observer for auto-generating employee_code
+- `/app/Models/Employee.php` — Employee model with MediaLibrary, ActivityLog, SoftDeletes, LocationScope
+- `/app/Models/Attendance.php` — Attendance model with LocationScope, SoftDeletes
+- `/app/Models/Shift.php` — Shift model with LocationScope, SoftDeletes
+- `/app/Models/Location.php` — Location model (code, state_code, attendance_radius_meters)
+- `/app/Services/Attendance/AttendanceService.php` — Core attendance logic
+- `/app/Services/Attendance/GeoFencingService.php` — Haversine geo-fencing
+- `/app/Jobs/ProcessBiometricPunch.php` — Biometric queue job
 
 ### Controllers
-- `/app/Http/Controllers/EmployeeController.php` - CRUD operations
-- `/app/Http/Controllers/EmployeeDocumentController.php` - Document management
-- `/app/Http/Controllers/EmployeeLifecycleController.php` - Status transitions
-
-### Services
-- `/app/Services/EmployeeImportService.php` - CSV import with validation
+- `/app/Http/Controllers/AttendanceController.php` — Attendance CRUD
+- `/app/Http/Controllers/ShiftController.php` — Shift CRUD
+- `/app/Http/Controllers/Api/BiometricMockController.php` — Mock biometric endpoint
 
 ### Views
-- `/resources/views/employees/index.blade.php` - Employee list
-- `/resources/views/employees/form.blade.php` - Create/edit form
-- `/resources/views/employees/show.blade.php` - Detail view
-- `/resources/views/employees/import.blade.php` - CSV import form
+- `/resources/views/attendance/index.blade.php` — Attendance list
+- `/resources/views/shifts/index.blade.php` — Shift list
+- `/resources/views/shifts/form.blade.php` — Create/edit shift
 
 ### Tests
-- `/tests/Feature/Phase1ExitGateTest.php` - 4 critical exit gate tests
+- `/tests/Feature/Phase1ExitGateTest.php` — 4 Phase 1 exit gate tests
+- `/tests/Feature/Phase2AttendanceTest.php` — 3 Phase 2 exit gate tests
 
 ### Configuration
-- `/config/statutory.php` - All statutory values for 9 states
-- `/config/logging.php` - JSON and audit logging
-- `/bootstrap/app.php` - Middleware registration
+- `/config/statutory.php` — All statutory values for 9 states (incl. OT config)
+- `/config/horizon.php` — Horizon queue configuration
+- `/bootstrap/app.php` — Middleware registration
 
 ---
 
 ## Known Limitations & Future Improvements
 
-1. **Department Hierarchy**: Currently flat, can be extended with recursive CTEs
-2. **CSV Import at Scale**: Currently synchronous, should use queue jobs for 1000+ employees
-3. **Document Storage**: MediaLibrary on S3 can get expensive; consider retention policy
-4. **Lifecycle Validation**: Probation period validation not yet enforced
-5. **Reporting**: No employee reports yet (headcount, turnover, etc.)
+1. **Shift Assignment**: Employees are not yet assigned to specific shifts; shift lookup is by location
+2. **Attendance Reports**: No attendance summary/analytics views yet
+3. **Leave Integration**: Attendance status does not yet check leave applications
+4. **Biometric Device Auth**: Mock endpoint uses Sanctum; real integration would use device-specific API keys
+5. **Horizon Supervisor**: Production Horizon supervisor config needs tuning for load
 
 ---
 
-## Next Phase: Phase 2 - Attendance & Shift Management
+## Next Phase: Phase 3 - Payroll & Statutory Compliance
 
 ### Planned Features
-1. Attendance tracking (check-in, check-out, late/early departures)
-2. Shift management (create, assign, view)
-3. Holiday calendar management
-4. Leave application workflow
-5. Attendance reports and analytics
+1. Payroll computation (gross, deductions, net pay)
+2. PF / ESI / PT calculations from config/statutory.php
+3. Salary slip generation (PDF)
+4. Payroll approval workflow
+5. Statutory filing reports
 
 ---
 
@@ -273,4 +314,4 @@ Password: password
 
 ---
 
-**Status:** Phase 1 Complete ✅ - Ready for Phase 2
+**Status:** Phase 2 Complete ✅ - Ready for Phase 3

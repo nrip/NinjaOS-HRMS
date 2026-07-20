@@ -13,19 +13,23 @@ class Location extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'address',
         'city',
         'state',
+        'state_code',
         'pin_code',
         'gis_lat',
         'gis_lng',
+        'attendance_radius_meters',
         'is_active',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'gis_lat' => 'decimal:8',
-        'gis_lng' => 'decimal:8',
+        'is_active'                 => 'boolean',
+        'gis_lat'                   => 'decimal:8',
+        'gis_lng'                   => 'decimal:8',
+        'attendance_radius_meters'  => 'integer',
     ];
 
     public function employees(): HasMany
